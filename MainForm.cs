@@ -1,3 +1,4 @@
+// C:\Users\alelm\OneDrive\Projects\FileContentToolkit\MainForm.cs
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -18,7 +19,9 @@ namespace FileContentToolkit
             SetupToolTips();
             SyncUIWithService();
 
-            // Keep the "Recreate Files" button right-aligned on resize
+            // Enable multiple selection for the lstFiles ListBox
+            lstFiles.SelectionMode = SelectionMode.MultiExtended;
+
             pnlRecreateInfo.Resize += (s, e) =>
             {
                 btnRecreateFiles.Left = pnlRecreateInfo.Width - btnRecreateFiles.Width - 20;
@@ -31,7 +34,7 @@ namespace FileContentToolkit
             AddHoverEffect(btnBrowse, Color.FromArgb(51, 122, 183));
             AddHoverEffect(btnAdd, Color.FromArgb(51, 122, 183));
             AddHoverEffect(btnRemove, Color.FromArgb(220, 53, 69));
-            AddHoverEffect(btnAddFile, Color.FromArgb(40, 167, 69));
+            AddHoverEffect(btnAddMultipleFiles, Color.FromArgb(40, 167, 69)); // Remains for the renamed button
             AddHoverEffect(btnRemoveFile, Color.FromArgb(220, 53, 69));
             AddHoverEffect(btnGenerate, Color.FromArgb(0, 123, 255));
             AddHoverEffect(btnRefreshExtensions, Color.FromArgb(51, 122, 183));
@@ -53,7 +56,7 @@ namespace FileContentToolkit
             toolTip1.SetToolTip(btnAdd, "Add a file extension to the list");
             toolTip1.SetToolTip(btnRemove, "Remove the selected file extension");
             toolTip1.SetToolTip(btnRefreshExtensions, "Refresh the file list for the selected extensions");
-            toolTip1.SetToolTip(btnAddFile, "Add files manually to the selected files list");
+            toolTip1.SetToolTip(btnAddMultipleFiles, "Add one or more files manually to the selected files list"); // Tooltip for the main add files button
             toolTip1.SetToolTip(btnRemoveFile, "Remove the selected file from the list");
             toolTip1.SetToolTip(btnMoveUp, "Move the selected file up");
             toolTip1.SetToolTip(btnMoveDown, "Move the selected file down");
@@ -89,6 +92,50 @@ namespace FileContentToolkit
                 }
             }
         }
+
+        private void MiSortByName_Click(object sender, EventArgs e)
+        {
+            SortFilesAndRebind(orderByExtension: false);
+        }
+
+        private void MiSortByExtension_Click(object sender, EventArgs e)
+        {
+            SortFilesAndRebind(orderByExtension: true);
+        }
+
+        private void SortFilesAndRebind(bool orderByExtension)
+        {
+            // capture currently selected items (relative paths as shown in the UI)
+            var selectedRel = lstFiles.SelectedItems
+                .Cast<string>()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // sort the underlying list of FULL PATHS
+            var sorted = orderByExtension
+                ? fileService.SelectedFiles
+                    .OrderBy(f => Path.GetExtension(f), StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+                : fileService.SelectedFiles
+                    .OrderBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+            fileService.SelectedFiles.Clear();
+            fileService.SelectedFiles.AddRange(sorted);
+
+            // rebind UI
+            SyncUIWithService();
+
+            // reselect previously selected items by their relative path
+            lstFiles.ClearSelected();
+            for (int i = 0; i < lstFiles.Items.Count; i++)
+            {
+                var rel = lstFiles.Items[i]?.ToString() ?? "";
+                if (selectedRel.Contains(rel))
+                    lstFiles.SetSelected(i, true);
+            }
+        }
+
 
         private void TxtFolderPath_TextChanged(object sender, EventArgs e)
         {
@@ -157,24 +204,47 @@ namespace FileContentToolkit
             }
         }
 
-        private void BtnAddFile_Click(object sender, EventArgs e)
+        // Event handler for adding multiple files (now the primary "Add Files" button)
+        private void BtnAddMultipleFiles_Click(object sender, EventArgs e)
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
                 openFileDialog.Title = "Select files to add";
-                openFileDialog.Multiselect = true;
+                openFileDialog.Multiselect = true; // Allow multiple file selection
 
+                // Constructing the filter string
+                List<string> filters = new List<string>();
+
+                // Always add an "All Files" option at the top
+                filters.Add("All Files (*.*)|*.*");
+
+                // Add existing service extensions if any
                 if (fileService.Extensions.Count > 0)
                 {
-                    string filter = "Selected Extensions|";
+                    string customExtFilter = "Configured Extensions|";
                     foreach (string ext in fileService.Extensions)
                     {
-                        filter += $"*{ext};";
+                        customExtFilter += $"*{ext};";
                     }
-                    filter = filter.TrimEnd(';');
-                    filter += "|All Files|*.*";
-                    openFileDialog.Filter = filter;
+                    customExtFilter = customExtFilter.TrimEnd(';');
+                    filters.Add(customExtFilter); // Add after "All Files"
                 }
+
+                // Add common code file filters
+                filters.Add("C# (C-Sharp) (*.cs)|*.cs");
+                filters.Add("Text Files (*.txt)|*.txt");
+                filters.Add("XML Files (*.xml)|*.xml");
+                filters.Add("JSON Files (*.json)|*.json");
+                filters.Add("Markdown Files (*.md)|*.md");
+                filters.Add("HTML Files (*.html;*.htm)|*.html;*.htm");
+                filters.Add("CSS Files (*.css)|*.css");
+                filters.Add("JavaScript Files (*.js)|*.js");
+                filters.Add("Python Files (*.py)|*.py");
+                filters.Add("Java Files (*.java)|*.java");
+                filters.Add("C++ Files (*.cpp;*.h)|*.cpp;*.h");
+
+                openFileDialog.Filter = string.Join("|", filters);
+
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
@@ -186,17 +256,49 @@ namespace FileContentToolkit
 
         private void BtnRemoveFile_Click(object sender, EventArgs e)
         {
-            if (lstFiles.SelectedIndex != -1)
+            if (lstFiles.SelectedItems.Count > 0)
             {
-                fileService.RemoveFileAt(lstFiles.SelectedIndex);
-                SyncUIWithService();
+                // Get the full paths of selected files to remove
+                List<string> filesToRemove = new List<string>();
+                foreach (var selectedItem in lstFiles.SelectedItems)
+                {
+                    // Convert the displayed relative path back to the full path
+                    // This assumes the fileService.SelectedFiles list maintains the full paths
+                    string displayedRelativePath = selectedItem.ToString();
+                    string fullPath = string.IsNullOrEmpty(fileService.FolderPath)
+                                        ? displayedRelativePath
+                                        : Path.Combine(fileService.FolderPath, displayedRelativePath);
+
+                    // A more robust way would be to get the actual full path from fileService.SelectedFiles
+                    // based on the index or by finding a match.
+                    // For now, let's assume direct mapping or get from original list if possible.
+                    // A safer approach is to get the full path directly if your ListBox stores full paths
+                    // or if you can map the relative path back to the full path from fileService.SelectedFiles.
+                    // For simplicity, we'll try to find the actual full path from fileService.SelectedFiles.
+                    string actualFullPath = fileService.SelectedFiles.FirstOrDefault(f =>
+                        (string.IsNullOrEmpty(fileService.FolderPath) && f.Equals(displayedRelativePath, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrEmpty(fileService.FolderPath) && Path.GetRelativePath(fileService.FolderPath, f).Equals(displayedRelativePath, StringComparison.OrdinalIgnoreCase))
+                    );
+
+                    if (actualFullPath != null)
+                    {
+                        filesToRemove.Add(actualFullPath);
+                    }
+                }
+
+                if (filesToRemove.Any())
+                {
+                    fileService.RemoveFiles(filesToRemove);
+                    SyncUIWithService();
+                }
             }
             else
             {
-                MessageBox.Show("Please select a file to remove.", "Selection Required",
+                MessageBox.Show("Please select one or more files to remove.", "Selection Required",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
+
 
         private void BtnMoveUp_Click(object sender, EventArgs e)
         {
@@ -337,5 +439,49 @@ namespace FileContentToolkit
                 }
             }
         }
+
+        private void MiShowExtensionSummary_Click(object sender, EventArgs e)
+        {
+            ShowExtensionCounts(false); // uses the OK/AddedExtension logic + SyncUIWithService()
+        }
+
+
+        private void ShowExtensionCounts(bool onlyConfigured)
+        {
+            if (string.IsNullOrEmpty(fileService.FolderPath) || !Directory.Exists(fileService.FolderPath))
+            {
+                MessageBox.Show("Please set a valid folder path first.", "Folder Required",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using (var dlg = new ExtensionCountsForm(fileService))
+            {
+                // optional: preset Configured-only toggle if you added a property
+                // dlg.ConfiguredOnly = onlyConfigured;
+
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    // Update the listbox to reflect any newly added extension(s)
+                    SyncUIWithService();
+
+                    // Optionally re-select the added extension:
+                    if (dlg.AddedExtensions?.Count > 0)
+                    {
+                        lstExtensions.ClearSelected();
+                        foreach (var ext in dlg.AddedExtensions)
+                        {
+                            int idx = lstExtensions.Items.IndexOf(ext);
+                            if (idx >= 0)
+                                lstExtensions.SetSelected(idx, true);
+                        }
+                    }
+                }
+            }
+        }
+
+
     }
 }
+
+

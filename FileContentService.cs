@@ -1,4 +1,5 @@
-﻿using System;
+// C:\Users\alelm\OneDrive\Projects\FileContentToolkit\FileContentService.cs
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -61,6 +62,15 @@ namespace FileContentToolkit
                 SelectedFiles.RemoveAt(index);
         }
 
+        // New method to remove multiple files
+        public void RemoveFiles(IEnumerable<string> filesToRemove)
+        {
+            foreach (var file in filesToRemove.ToList()) // ToList() to avoid modification during enumeration
+            {
+                SelectedFiles.Remove(file);
+            }
+        }
+
         public void RefreshFiles()
         {
             SelectedFiles.Clear();
@@ -76,5 +86,47 @@ namespace FileContentToolkit
 
             SelectedFiles.AddRange(files);
         }
+
+        public List<(string Extension, int Count)> GetAvailableExtensionCounts(bool onlyConfigured)
+        {
+            var result = new List<(string, int)>();
+
+
+            if (string.IsNullOrEmpty(FolderPath) || !Directory.Exists(FolderPath))
+                return result;
+
+
+            var searchOption = IncludeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            IEnumerable<string> files;
+            try
+            {
+                files = Directory.EnumerateFiles(FolderPath, "*.*", searchOption);
+            }
+            catch
+            {
+                return result;
+            }
+
+
+            var groups = files
+            .GroupBy(f => (Path.GetExtension(f) ?? string.Empty).ToLowerInvariant())
+            .Select(g => new { Ext = string.IsNullOrEmpty(g.Key) ? "(no ext)" : g.Key, Count = g.Count() });
+
+
+            if (onlyConfigured && Extensions.Count > 0)
+            {
+                var set = new HashSet<string>(Extensions, StringComparer.OrdinalIgnoreCase);
+                groups = groups.Where(g => set.Contains(g.Ext.Equals("(no ext)") ? string.Empty : g.Ext));
+            }
+
+
+            return groups
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.Ext)
+            .Select(g => (g.Ext, g.Count))
+            .ToList();
+        }
     }
 }
+
+

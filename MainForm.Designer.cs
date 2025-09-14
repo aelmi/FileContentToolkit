@@ -1,4 +1,5 @@
-﻿using System;
+// C:\Users\alelm\OneDrive\Projects\FileContentToolkit\MainForm.Designer.cs
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -8,7 +9,6 @@ namespace FileContentToolkit
     {
         private System.ComponentModel.IContainer components = null;
 
-        // New fields for the Recreate Files panel
         private System.Windows.Forms.Panel pnlRecreateInfo;
         private System.Windows.Forms.TableLayoutPanel tblRecreateInfo;
         private System.Windows.Forms.Label lblRecreateInfo;
@@ -23,7 +23,9 @@ namespace FileContentToolkit
         private System.Windows.Forms.GroupBox grpExtensions;
         private System.Windows.Forms.Label lblExtension;
         private System.Windows.Forms.TextBox txtExtension;
-        private System.Windows.Forms.Button btnAdd;
+
+        private FileContentToolkit.UI.SplitButton btnAdd;
+
         private System.Windows.Forms.ListBox lstExtensions;
         private System.Windows.Forms.Button btnRemove;
         private System.Windows.Forms.CheckBox chkIncludeSubfolders;
@@ -32,7 +34,7 @@ namespace FileContentToolkit
         private System.Windows.Forms.GroupBox grpFiles;
         private System.Windows.Forms.ListBox lstFiles;
         private System.Windows.Forms.Panel pnlFileButtons;
-        private System.Windows.Forms.Button btnAddFile;
+        private System.Windows.Forms.Button btnAddMultipleFiles;
         private System.Windows.Forms.Button btnRemoveFile;
         private System.Windows.Forms.Label lblFileCount;
         private System.Windows.Forms.Button btnMoveUp;
@@ -48,6 +50,14 @@ namespace FileContentToolkit
         private System.Windows.Forms.Button btnEditOutput;
 
         private System.Windows.Forms.ToolTip toolTip1;
+
+        private System.Windows.Forms.ContextMenuStrip cmsAddDropdown;
+        private System.Windows.Forms.ToolStripMenuItem miShowExtensionSummary;
+
+        private System.Windows.Forms.ContextMenuStrip ctxFiles;
+        private System.Windows.Forms.ToolStripMenuItem miSortByName;
+        private System.Windows.Forms.ToolStripMenuItem miSortByExtension;
+
 
         protected override void Dispose(bool disposing)
         {
@@ -70,16 +80,21 @@ namespace FileContentToolkit
             pnlLeft = new Panel();
             grpFiles = new GroupBox();
             lstFiles = new ListBox();
+            ctxFiles = new ContextMenuStrip(components);
+            miSortByName = new ToolStripMenuItem();
+            miSortByExtension = new ToolStripMenuItem();
             pnlFileButtons = new Panel();
             lblFileCount = new Label();
-            btnAddFile = new Button();
+            btnAddMultipleFiles = new Button();
             btnRemoveFile = new Button();
             btnMoveUp = new Button();
             btnMoveDown = new Button();
             grpExtensions = new GroupBox();
             lblExtension = new Label();
             txtExtension = new TextBox();
-            btnAdd = new Button();
+            btnAdd = new FileContentToolkit.UI.SplitButton();
+            cmsAddDropdown = new ContextMenuStrip(components);
+            miShowExtensionSummary = new ToolStripMenuItem();
             lstExtensions = new ListBox();
             btnRemove = new Button();
             chkIncludeSubfolders = new CheckBox();
@@ -99,8 +114,10 @@ namespace FileContentToolkit
             pnlTop.SuspendLayout();
             pnlLeft.SuspendLayout();
             grpFiles.SuspendLayout();
+            ctxFiles.SuspendLayout();
             pnlFileButtons.SuspendLayout();
             grpExtensions.SuspendLayout();
+            cmsAddDropdown.SuspendLayout();
             pnlBottom.SuspendLayout();
             pnlRight.SuspendLayout();
             pnlRecreateInfo.SuspendLayout();
@@ -188,6 +205,7 @@ namespace FileContentToolkit
             // 
             lstFiles.BackColor = Color.White;
             lstFiles.BorderStyle = BorderStyle.FixedSingle;
+            lstFiles.ContextMenuStrip = ctxFiles;
             lstFiles.Dock = DockStyle.Fill;
             lstFiles.Font = new Font("Segoe UI", 9F);
             lstFiles.ForeColor = Color.Black;
@@ -196,14 +214,36 @@ namespace FileContentToolkit
             lstFiles.ItemHeight = 25;
             lstFiles.Location = new Point(5, 33);
             lstFiles.Name = "lstFiles";
+            lstFiles.SelectionMode = SelectionMode.MultiExtended;
             lstFiles.Size = new Size(452, 463);
             lstFiles.TabIndex = 0;
             lstFiles.KeyDown += LstFiles_KeyDown;
             // 
+            // ctxFiles
+            // 
+            ctxFiles.ImageScalingSize = new Size(24, 24);
+            ctxFiles.Items.AddRange(new ToolStripItem[] { miSortByName, miSortByExtension });
+            ctxFiles.Name = "ctxFiles";
+            ctxFiles.Size = new Size(223, 68);
+            // 
+            // miSortByName
+            // 
+            miSortByName.Name = "miSortByName";
+            miSortByName.Size = new Size(222, 32);
+            miSortByName.Text = "Sort by Name";
+            miSortByName.Click += MiSortByName_Click;
+            // 
+            // miSortByExtension
+            // 
+            miSortByExtension.Name = "miSortByExtension";
+            miSortByExtension.Size = new Size(222, 32);
+            miSortByExtension.Text = "Sort by Extension";
+            miSortByExtension.Click += MiSortByExtension_Click;
+            // 
             // pnlFileButtons
             // 
             pnlFileButtons.Controls.Add(lblFileCount);
-            pnlFileButtons.Controls.Add(btnAddFile);
+            pnlFileButtons.Controls.Add(btnAddMultipleFiles);
             pnlFileButtons.Controls.Add(btnRemoveFile);
             pnlFileButtons.Controls.Add(btnMoveUp);
             pnlFileButtons.Controls.Add(btnMoveDown);
@@ -224,22 +264,22 @@ namespace FileContentToolkit
             lblFileCount.TabIndex = 0;
             lblFileCount.Text = "Files: 0";
             // 
-            // btnAddFile
+            // btnAddMultipleFiles
             // 
-            btnAddFile.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnAddFile.BackColor = Color.FromArgb(40, 167, 69);
-            btnAddFile.Cursor = Cursors.Hand;
-            btnAddFile.FlatAppearance.BorderSize = 0;
-            btnAddFile.FlatStyle = FlatStyle.Flat;
-            btnAddFile.Font = new Font("Segoe UI", 9F);
-            btnAddFile.ForeColor = Color.White;
-            btnAddFile.Location = new Point(120, 12);
-            btnAddFile.Name = "btnAddFile";
-            btnAddFile.Size = new Size(90, 52);
-            btnAddFile.TabIndex = 1;
-            btnAddFile.Text = "Add File";
-            btnAddFile.UseVisualStyleBackColor = false;
-            btnAddFile.Click += BtnAddFile_Click;
+            btnAddMultipleFiles.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnAddMultipleFiles.BackColor = Color.FromArgb(40, 167, 69);
+            btnAddMultipleFiles.Cursor = Cursors.Hand;
+            btnAddMultipleFiles.FlatAppearance.BorderSize = 0;
+            btnAddMultipleFiles.FlatStyle = FlatStyle.Flat;
+            btnAddMultipleFiles.Font = new Font("Segoe UI", 9F);
+            btnAddMultipleFiles.ForeColor = Color.White;
+            btnAddMultipleFiles.Location = new Point(140, 12);
+            btnAddMultipleFiles.Name = "btnAddMultipleFiles";
+            btnAddMultipleFiles.Size = new Size(100, 52);
+            btnAddMultipleFiles.TabIndex = 1;
+            btnAddMultipleFiles.Text = "Add Files";
+            btnAddMultipleFiles.UseVisualStyleBackColor = false;
+            btnAddMultipleFiles.Click += BtnAddMultipleFiles_Click;
             // 
             // btnRemoveFile
             // 
@@ -250,7 +290,7 @@ namespace FileContentToolkit
             btnRemoveFile.FlatStyle = FlatStyle.Flat;
             btnRemoveFile.Font = new Font("Segoe UI", 9F);
             btnRemoveFile.ForeColor = Color.White;
-            btnRemoveFile.Location = new Point(215, 12);
+            btnRemoveFile.Location = new Point(250, 12);
             btnRemoveFile.Name = "btnRemoveFile";
             btnRemoveFile.Size = new Size(90, 52);
             btnRemoveFile.TabIndex = 2;
@@ -267,7 +307,7 @@ namespace FileContentToolkit
             btnMoveUp.FlatStyle = FlatStyle.Flat;
             btnMoveUp.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             btnMoveUp.ForeColor = Color.Black;
-            btnMoveUp.Location = new Point(310, 12);
+            btnMoveUp.Location = new Point(350, 12);
             btnMoveUp.Name = "btnMoveUp";
             btnMoveUp.Size = new Size(40, 40);
             btnMoveUp.TabIndex = 3;
@@ -284,7 +324,7 @@ namespace FileContentToolkit
             btnMoveDown.FlatStyle = FlatStyle.Flat;
             btnMoveDown.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             btnMoveDown.ForeColor = Color.Black;
-            btnMoveDown.Location = new Point(355, 12);
+            btnMoveDown.Location = new Point(395, 12);
             btnMoveDown.Name = "btnMoveDown";
             btnMoveDown.Size = new Size(40, 40);
             btnMoveDown.TabIndex = 4;
@@ -337,17 +377,34 @@ namespace FileContentToolkit
             // 
             btnAdd.BackColor = Color.FromArgb(51, 122, 183);
             btnAdd.Cursor = Cursors.Hand;
+            btnAdd.DropDownMenu = cmsAddDropdown;
+            btnAdd.DropDownWidth = 22;
             btnAdd.FlatAppearance.BorderSize = 0;
             btnAdd.FlatStyle = FlatStyle.Flat;
             btnAdd.Font = new Font("Segoe UI", 9F);
             btnAdd.ForeColor = Color.White;
             btnAdd.Location = new Point(283, 85);
             btnAdd.Name = "btnAdd";
+            btnAdd.ShowSplit = true;
             btnAdd.Size = new Size(133, 52);
             btnAdd.TabIndex = 2;
             btnAdd.Text = "Add";
             btnAdd.UseVisualStyleBackColor = false;
             btnAdd.Click += BtnAdd_Click;
+            // 
+            // cmsAddDropdown
+            // 
+            cmsAddDropdown.ImageScalingSize = new Size(20, 20);
+            cmsAddDropdown.Items.AddRange(new ToolStripItem[] { miShowExtensionSummary });
+            cmsAddDropdown.Name = "cmsAddDropdown";
+            cmsAddDropdown.Size = new Size(301, 36);
+            // 
+            // miShowExtensionSummary
+            // 
+            miShowExtensionSummary.Name = "miShowExtensionSummary";
+            miShowExtensionSummary.Size = new Size(300, 32);
+            miShowExtensionSummary.Text = "Show extension summary…";
+            miShowExtensionSummary.Click += MiShowExtensionSummary_Click;
             // 
             // lstExtensions
             // 
@@ -494,7 +551,7 @@ namespace FileContentToolkit
             lblRecreateInfo.Name = "lblRecreateInfo";
             lblRecreateInfo.Size = new Size(934, 80);
             lblRecreateInfo.TabIndex = 0;
-            lblRecreateInfo.Text = "🗂️  Recreate Files: This feature lets you restore files and folders from the output below.\nPaste or load the output, then click 'Recreate Files' to generate them in a folder of your choice.";
+            lblRecreateInfo.Text = "🗂️ Recreate Files: This feature lets you restore files and folders from the output below.\nPaste or load the output, then click 'Recreate Files' to generate them in a folder of your choice.";
             lblRecreateInfo.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // btnRecreateFiles
@@ -576,10 +633,12 @@ namespace FileContentToolkit
             pnlTop.PerformLayout();
             pnlLeft.ResumeLayout(false);
             grpFiles.ResumeLayout(false);
+            ctxFiles.ResumeLayout(false);
             pnlFileButtons.ResumeLayout(false);
             pnlFileButtons.PerformLayout();
             grpExtensions.ResumeLayout(false);
             grpExtensions.PerformLayout();
+            cmsAddDropdown.ResumeLayout(false);
             pnlBottom.ResumeLayout(false);
             pnlRight.ResumeLayout(false);
             pnlRight.PerformLayout();
@@ -587,6 +646,7 @@ namespace FileContentToolkit
             tblRecreateInfo.ResumeLayout(false);
             ResumeLayout(false);
         }
+
 
         #endregion
     }

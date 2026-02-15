@@ -1,46 +1,73 @@
-// C:\Users\alelm\OneDrive\Projects\FileContentToolkit\MainForm.cs
+﻿using FileContentToolkit.Dialogs;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
 
 namespace FileContentToolkit
 {
     public partial class MainForm : Form
     {
         private FileContentService fileService = new FileContentService();
+        private BackgroundWorker bgWorker; // For background scan
+        private Encoding selectedEncoding = Encoding.UTF8; // Default UTF-8
 
         public MainForm()
         {
             InitializeComponent();
+
+            // Optional: keep these visual behaviors in code-behind
             SetupHoverEffects();
-            SetupToolTips();
+
+            // ToolTips are defined in Designer now; remove this if you moved them there:
+            // SetupToolTips();
+
+            // Ensure UI reflects service state
             SyncUIWithService();
 
-            // Enable multiple selection for the lstFiles ListBox
+            // Redundant with Designer, but harmless if left:
             lstFiles.SelectionMode = SelectionMode.MultiExtended;
 
-            pnlRecreateInfo.Resize += (s, e) =>
-            {
-                btnRecreateFiles.Left = pnlRecreateInfo.Width - btnRecreateFiles.Width - 20;
-                btnRecreateFiles.Top = (pnlRecreateInfo.Height - btnRecreateFiles.Height) / 2;
-            };
+            // New: Setup background worker for scan
+            bgWorker = new BackgroundWorker();
+            bgWorker.DoWork += BgWorker_DoWork;
+            bgWorker.RunWorkerCompleted += BgWorker_RunWorkerCompleted;
+            bgWorker.ProgressChanged += BgWorker_ProgressChanged;
+            bgWorker.WorkerReportsProgress = true;
+
+            // New: Populate extension suggestions
+            cmbExtension.Items.AddRange(new string[] { ".cs", ".txt", ".xml", ".json", ".md", ".html", ".css", ".js", ".py", ".java", ".cpp" });
+            cmbExtension.DropDownStyle = ComboBoxStyle.DropDown;
+
+            // New: Populate encodings
+            cmbEncoding.Items.AddRange(new object[] { "UTF-8", "ASCII", "UTF-16", "UTF-32", "ISO-8859-1" });
+            cmbEncoding.SelectedIndex = 0; // Default UTF-8
         }
+
+        #region UI Polishing (Hover Effects)
 
         private void SetupHoverEffects()
         {
             AddHoverEffect(btnBrowse, Color.FromArgb(51, 122, 183));
             AddHoverEffect(btnAdd, Color.FromArgb(51, 122, 183));
             AddHoverEffect(btnRemove, Color.FromArgb(220, 53, 69));
-            AddHoverEffect(btnAddMultipleFiles, Color.FromArgb(40, 167, 69)); // Remains for the renamed button
+            AddHoverEffect(btnAddMultipleFiles, Color.FromArgb(40, 167, 69));
             AddHoverEffect(btnRemoveFile, Color.FromArgb(220, 53, 69));
             AddHoverEffect(btnGenerate, Color.FromArgb(0, 123, 255));
             AddHoverEffect(btnRefreshExtensions, Color.FromArgb(51, 122, 183));
             AddHoverEffect(btnMoveUp, Color.LightGray);
             AddHoverEffect(btnMoveDown, Color.LightGray);
             AddHoverEffect(btnRecreateFiles, Color.FromArgb(40, 167, 69));
+            AddHoverEffect(btnExportOutput, Color.FromArgb(13, 110, 253)); // New
+            AddHoverEffect(btnSearchFiles, Color.FromArgb(108, 117, 125)); // New
         }
 
         private void AddHoverEffect(System.Windows.Forms.Button button, Color originalColor)
@@ -49,14 +76,71 @@ namespace FileContentToolkit
             button.MouseLeave += (s, e) => button.BackColor = originalColor;
         }
 
+        // Updated with new buttons
+        private void AddHoverEffects()
+        {
+            // For Copy, Edit, Export buttons
+            btnCopyOutput.MouseEnter += (s, e) => btnCopyOutput.BackColor = Color.FromArgb(230, 230, 230);
+            btnCopyOutput.MouseLeave += (s, e) => btnCopyOutput.BackColor = Color.FromArgb(248, 249, 250);
+
+            btnEditOutput.MouseEnter += (s, e) => btnEditOutput.BackColor = Color.FromArgb(230, 230, 230);
+            btnEditOutput.MouseLeave += (s, e) => btnEditOutput.BackColor = Color.FromArgb(248, 249, 250);
+
+            btnExportOutput.MouseEnter += (s, e) => btnExportOutput.BackColor = Color.FromArgb(230, 230, 230);
+            btnExportOutput.MouseLeave += (s, e) => btnExportOutput.BackColor = Color.FromArgb(248, 249, 250);
+
+            // For compression buttons - slightly darker on hover
+            btnCompress.MouseEnter += (s, e) => btnCompress.BackColor = Color.FromArgb(10, 88, 202);
+            btnCompress.MouseLeave += (s, e) => btnCompress.BackColor = Color.FromArgb(13, 110, 253);
+
+            btnDecompress.MouseEnter += (s, e) => btnDecompress.BackColor = Color.FromArgb(90, 98, 104);
+            btnDecompress.MouseLeave += (s, e) => btnDecompress.BackColor = Color.FromArgb(108, 117, 125);
+
+            btnCompressEnc.MouseEnter += (s, e) => btnCompressEnc.BackColor = Color.FromArgb(21, 115, 71);
+            btnCompressEnc.MouseLeave += (s, e) => btnCompressEnc.BackColor = Color.FromArgb(25, 135, 84);
+
+            btnDecompressEnc.MouseEnter += (s, e) => btnDecompressEnc.BackColor = Color.FromArgb(187, 45, 59);
+            btnDecompressEnc.MouseLeave += (s, e) => btnDecompressEnc.BackColor = Color.FromArgb(220, 53, 69);
+
+            // New: Search button
+            btnSearchFiles.MouseEnter += (s, e) => btnSearchFiles.BackColor = Color.FromArgb(90, 98, 104);
+            btnSearchFiles.MouseLeave += (s, e) => btnSearchFiles.BackColor = Color.FromArgb(108, 117, 125);
+        }
+
+        private string PromptForPassword(string title)
+        {
+            using var f = new Form()
+            {
+                Width = 380,
+                Height = 150,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = title,
+                StartPosition = FormStartPosition.CenterParent
+            };
+            var lbl = new Label() { Left = 15, Top = 12, Width = 340, Text = "Password:" };
+            var tb = new System.Windows.Forms.TextBox() { Left = 15, Top = 35, Width = 340, UseSystemPasswordChar = true };
+            var ok = new System.Windows.Forms.Button() { Text = "OK", Left = 190, Width = 75, Top = 70, DialogResult = DialogResult.OK };
+            var cancel = new System.Windows.Forms.Button() { Text = "Cancel", Left = 280, Width = 75, Top = 70, DialogResult = DialogResult.Cancel };
+            f.Controls.AddRange(new Control[] { lbl, tb, ok, cancel });
+            f.AcceptButton = ok; f.CancelButton = cancel;
+
+            return f.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
+        }
+
+        #endregion
+
+        #region (Optional) ToolTips if kept in code-behind
+        // If you moved tooltip strings to Designer, you can delete this method and the call.
         private void SetupToolTips()
         {
-            toolTip1 = new System.Windows.Forms.ToolTip();
+            // IMPORTANT: Do NOT instantiate toolTip1 here anymore because the Designer owns it.
+            // toolTip1 = new System.Windows.Forms.ToolTip();
+
             toolTip1.SetToolTip(btnBrowse, "Browse for a folder");
             toolTip1.SetToolTip(btnAdd, "Add a file extension to the list");
             toolTip1.SetToolTip(btnRemove, "Remove the selected file extension");
             toolTip1.SetToolTip(btnRefreshExtensions, "Refresh the file list for the selected extensions");
-            toolTip1.SetToolTip(btnAddMultipleFiles, "Add one or more files manually to the selected files list"); // Tooltip for the main add files button
+            toolTip1.SetToolTip(btnAddMultipleFiles, "Add one or more files manually to the selected files list");
             toolTip1.SetToolTip(btnRemoveFile, "Remove the selected file from the list");
             toolTip1.SetToolTip(btnMoveUp, "Move the selected file up");
             toolTip1.SetToolTip(btnMoveDown, "Move the selected file down");
@@ -65,11 +149,20 @@ namespace FileContentToolkit
             toolTip1.SetToolTip(chkIncludeSubfolders, "Include files from subfolders");
             toolTip1.SetToolTip(btnEditOutput, "Edit the output");
             toolTip1.SetToolTip(btnRecreateFiles, "Recreate files and folders from the output below");
+            toolTip1.SetToolTip(txtIgnorePatterns, "Comma-separated ignore patterns (e.g., *.tmp, bin/)"); // New
+            toolTip1.SetToolTip(btnExportOutput, "Export output to file"); // New
+            toolTip1.SetToolTip(txtSearchFiles, "Search term for file contents"); // New
+            toolTip1.SetToolTip(btnSearchFiles, "Search in selected files"); // New
+            toolTip1.SetToolTip(cmbEncoding, "Select file encoding (default UTF-8)"); // New
         }
+        #endregion
+
+        #region Event Handlers (wired from Designer)
 
         private void BtnEditOutput_Click(object sender, EventArgs e)
         {
             rtbOutput.ReadOnly = !rtbOutput.ReadOnly;
+
             if (rtbOutput.ReadOnly)
             {
                 btnEditOutput.BackColor = Color.Transparent;
@@ -81,6 +174,7 @@ namespace FileContentToolkit
                 toolTip1.SetToolTip(btnEditOutput, "Click to finish editing");
             }
         }
+
         private void BtnBrowse_Click(object sender, EventArgs e)
         {
             using (FolderBrowserDialog folderDialog = new FolderBrowserDialog())
@@ -103,67 +197,149 @@ namespace FileContentToolkit
             SortFilesAndRebind(orderByExtension: true);
         }
 
-        private void SortFilesAndRebind(bool orderByExtension)
+        private void BtnCompress_Click(object sender, EventArgs e)
         {
-            // capture currently selected items (relative paths as shown in the UI)
-            var selectedRel = lstFiles.SelectedItems
-                .Cast<string>()
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            // sort the underlying list of FULL PATHS
-            var sorted = orderByExtension
-                ? fileService.SelectedFiles
-                    .OrderBy(f => Path.GetExtension(f), StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
-                    .ToList()
-                : fileService.SelectedFiles
-                    .OrderBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-            fileService.SelectedFiles.Clear();
-            fileService.SelectedFiles.AddRange(sorted);
-
-            // rebind UI
-            SyncUIWithService();
-
-            // reselect previously selected items by their relative path
-            lstFiles.ClearSelected();
-            for (int i = 0; i < lstFiles.Items.Count; i++)
+            try
             {
-                var rel = lstFiles.Items[i]?.ToString() ?? "";
-                if (selectedRel.Contains(rel))
-                    lstFiles.SetSelected(i, true);
+                var input = rtbOutput.Text ?? string.Empty;
+                var compressed = CompressionUtils.CompressToBase64(input);
+                rtbOutput.ReadOnly = false;
+                rtbOutput.Text = compressed;
+                rtbOutput.ReadOnly = true;
+
+                MessageBox.Show(
+                    $"Compressed with GZip → Base64.\n\nOriginal: {input.Length:N0} chars\nCompressed: {compressed.Length:N0} chars",
+                    "Compression", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Compression failed: " + ex.Message, "Compression",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
+        private void BtnDecompress_Click(object sender, EventArgs e)
+        {
+            var base64 = rtbOutput.Text ?? string.Empty;
+            if (CompressionUtils.TryDecompressFromBase64(base64, out var text, out var error))
+            {
+                rtbOutput.ReadOnly = false;
+                rtbOutput.Text = text;
+                rtbOutput.ReadOnly = true;
+            }
+            else
+            {
+                MessageBox.Show(error, "Decompression", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void BtnCompressEnc_Click(object sender, EventArgs e)
+        {
+            string pwd;
+
+            using (var dialog = new PasswordDialog("Enter password for encryption"))
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    pwd = dialog.Password;
+                }
+                else
+                {
+                    return; // cancelled
+                }
+            }
+
+            if (string.IsNullOrEmpty(pwd)) return; // no password entered
+
+            try
+            {
+                var input = rtbOutput.Text ?? string.Empty;
+                var sealedBase64 = CompressionUtils.CompressAndEncryptToBase64(input, pwd);
+                rtbOutput.ReadOnly = false;
+                rtbOutput.Text = sealedBase64;
+                rtbOutput.ReadOnly = true;
+
+                MessageBox.Show("Compressed and encrypted (AES-GCM) successfully.",
+                    "Secure Compression", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Secure compression failed: " + ex.Message, "Secure Compression",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnDecompressEnc_Click(object sender, EventArgs e)
+        {
+            string pwd;
+
+            using (var dialog = new PasswordDialog("Enter password for decryption"))
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    pwd = dialog.Password;
+                }
+                else
+                {
+                    return; // cancelled
+                }
+            }
+
+            if (string.IsNullOrEmpty(pwd)) return; // no password entered
+
+            try
+            {
+                var input = rtbOutput.Text ?? string.Empty;
+
+                if (CompressionUtils.TryDecryptAndDecompressFromBase64(input, pwd, out string decrypted, out string error))
+                {
+                    rtbOutput.ReadOnly = false;
+                    rtbOutput.Text = decrypted;
+                    rtbOutput.ReadOnly = true;
+
+                    MessageBox.Show("Decrypted and decompressed (AES-GCM) successfully.",
+                        "Secure Decompression", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show($"Secure decompression failed: {error}", "Secure Decompression",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Secure decompression failed: " + ex.Message, "Secure Decompression",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
         private void TxtFolderPath_TextChanged(object sender, EventArgs e)
         {
             fileService.SetFolderPath(txtFolderPath.Text);
-            SyncUIWithService();
+            RefreshFilesInBackground();
         }
 
         private void ChkIncludeSubfolders_CheckedChanged(object sender, EventArgs e)
         {
             fileService.SetIncludeSubfolders(chkIncludeSubfolders.Checked);
-            SyncUIWithService();
+            RefreshFilesInBackground();
         }
 
         private void BtnRefreshExtensions_Click(object sender, EventArgs e)
         {
-            fileService.RefreshFiles();
-            SyncUIWithService();
+            RefreshFilesInBackground();
         }
 
         private void BtnAdd_Click(object sender, EventArgs e)
         {
-            string extension = txtExtension.Text.Trim();
+            string extension = cmbExtension.Text.Trim(); // Changed to cmb
             if (string.IsNullOrEmpty(extension))
             {
                 MessageBox.Show("Please enter a file extension.", "Input Required",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
             if (!extension.StartsWith("."))
                 extension = "." + extension;
 
@@ -176,8 +352,9 @@ namespace FileContentToolkit
 
             fileService.AddExtension(extension);
             SyncUIWithService();
-            txtExtension.Clear();
-            txtExtension.Focus();
+            cmbExtension.Text = "";
+            cmbExtension.Focus();
+            BtnRefreshExtensions_Click(null, null);
         }
 
         private void BtnRemove_Click(object sender, EventArgs e)
@@ -193,9 +370,10 @@ namespace FileContentToolkit
                 MessageBox.Show("Please select an extension to remove.", "Selection Required",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
+            BtnRefreshExtensions_Click(null, null);
         }
 
-        private void TxtExtension_KeyPress(object sender, KeyPressEventArgs e)
+        private void CmbExtension_KeyPress(object sender, KeyPressEventArgs e) // Changed to cmb
         {
             if (e.KeyChar == (char)Keys.Enter)
             {
@@ -204,33 +382,28 @@ namespace FileContentToolkit
             }
         }
 
-        // Event handler for adding multiple files (now the primary "Add Files" button)
+        // Primary "Add Files" button
         private void BtnAddMultipleFiles_Click(object sender, EventArgs e)
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
                 openFileDialog.Title = "Select files to add";
-                openFileDialog.Multiselect = true; // Allow multiple file selection
+                openFileDialog.Multiselect = true;
 
-                // Constructing the filter string
-                List<string> filters = new List<string>();
+                // Build filter: each entry is "Description|pattern"
+                var filters = new List<string>
+            {
+                "All Files (*.*)|*.*"
+            };
 
-                // Always add an "All Files" option at the top
-                filters.Add("All Files (*.*)|*.*");
-
-                // Add existing service extensions if any
                 if (fileService.Extensions.Count > 0)
                 {
-                    string customExtFilter = "Configured Extensions|";
-                    foreach (string ext in fileService.Extensions)
-                    {
-                        customExtFilter += $"*{ext};";
-                    }
-                    customExtFilter = customExtFilter.TrimEnd(';');
-                    filters.Add(customExtFilter); // Add after "All Files"
+                    string patterns = string.Join("", fileService.Extensions.Select(ext => $"*{ext};"));
+                    patterns = patterns.TrimEnd(';');
+                    filters.Add($"Configured Extensions|{patterns}");
                 }
 
-                // Add common code file filters
+                // Common code file types
                 filters.Add("C# (C-Sharp) (*.cs)|*.cs");
                 filters.Add("Text Files (*.txt)|*.txt");
                 filters.Add("XML Files (*.xml)|*.xml");
@@ -245,7 +418,6 @@ namespace FileContentToolkit
 
                 openFileDialog.Filter = string.Join("|", filters);
 
-
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     fileService.AddFiles(openFileDialog.FileNames);
@@ -258,32 +430,20 @@ namespace FileContentToolkit
         {
             if (lstFiles.SelectedItems.Count > 0)
             {
-                // Get the full paths of selected files to remove
+                // Resolve selected displayed paths (relative) back to full paths
                 List<string> filesToRemove = new List<string>();
                 foreach (var selectedItem in lstFiles.SelectedItems)
                 {
-                    // Convert the displayed relative path back to the full path
-                    // This assumes the fileService.SelectedFiles list maintains the full paths
                     string displayedRelativePath = selectedItem.ToString();
-                    string fullPath = string.IsNullOrEmpty(fileService.FolderPath)
-                                        ? displayedRelativePath
-                                        : Path.Combine(fileService.FolderPath, displayedRelativePath);
 
-                    // A more robust way would be to get the actual full path from fileService.SelectedFiles
-                    // based on the index or by finding a match.
-                    // For now, let's assume direct mapping or get from original list if possible.
-                    // A safer approach is to get the full path directly if your ListBox stores full paths
-                    // or if you can map the relative path back to the full path from fileService.SelectedFiles.
-                    // For simplicity, we'll try to find the actual full path from fileService.SelectedFiles.
                     string actualFullPath = fileService.SelectedFiles.FirstOrDefault(f =>
-                        (string.IsNullOrEmpty(fileService.FolderPath) && f.Equals(displayedRelativePath, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrEmpty(fileService.FolderPath) && Path.GetRelativePath(fileService.FolderPath, f).Equals(displayedRelativePath, StringComparison.OrdinalIgnoreCase))
-                    );
+                        (string.IsNullOrEmpty(fileService.FolderPath) && f.Equals(displayedRelativePath, StringComparison.OrdinalIgnoreCase))
+                        ||
+                        (!string.IsNullOrEmpty(fileService.FolderPath)
+                            && GetRelativePath(fileService.FolderPath, f).Equals(displayedRelativePath, StringComparison.OrdinalIgnoreCase)));
 
                     if (actualFullPath != null)
-                    {
                         filesToRemove.Add(actualFullPath);
-                    }
                 }
 
                 if (filesToRemove.Any())
@@ -299,7 +459,6 @@ namespace FileContentToolkit
             }
         }
 
-
         private void BtnMoveUp_Click(object sender, EventArgs e)
         {
             int idx = lstFiles.SelectedIndex;
@@ -309,6 +468,7 @@ namespace FileContentToolkit
                 var temp = files[idx - 1];
                 files[idx - 1] = files[idx];
                 files[idx] = temp;
+
                 SyncUIWithService();
                 lstFiles.SelectedIndex = idx - 1;
             }
@@ -323,6 +483,7 @@ namespace FileContentToolkit
                 var temp = files[idx + 1];
                 files[idx + 1] = files[idx];
                 files[idx] = temp;
+
                 SyncUIWithService();
                 lstFiles.SelectedIndex = idx + 1;
             }
@@ -345,29 +506,202 @@ namespace FileContentToolkit
             ProcessFiles();
         }
 
+        private void LstFiles_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Delete)
+            {
+                BtnRemoveFile_Click(sender, e);
+            }
+        }
+
+        private void BtnRecreateFiles_Click(object sender, EventArgs e)
+        {
+            using (var folderDialog = new FolderBrowserDialog())
+            {
+                folderDialog.Description = "Select a folder to recreate files in";
+                if (folderDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string baseFolder = folderDialog.SelectedPath;
+                    try
+                    {
+                        int count = FileRecreator.RecreateFilesFromOutput(
+                            rtbOutput.Text,
+                            baseFolder,
+                            fileService.FolderPath);
+
+                        MessageBox.Show($"{count} file(s) created successfully.",
+                            "Recreate Files", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error: " + ex.Message,
+                            "Recreate Files", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private void MiShowExtensionSummary_Click(object sender, EventArgs e)
+        {
+            ShowExtensionCounts(false);
+        }
+
+        private void PnlRecreateInfo_Resize(object sender, EventArgs e)
+        {
+            // Keep the button aligned at the right, vertically centered
+            btnRecreateFiles.Left = pnlRecreateInfo.Width - btnRecreateFiles.Width - 20;
+            btnRecreateFiles.Top = (pnlRecreateInfo.Height - btnRecreateFiles.Height) / 2;
+        }
+
+        // New: Export Output
+        private void BtnExportOutput_Click(object sender, EventArgs e)
+        {
+            using (SaveFileDialog sfd = new SaveFileDialog())
+            {
+                sfd.Filter = "Text Files (*.txt)|*.txt|All Files (*.*)|*.*";
+                sfd.Title = "Export Output";
+                if (sfd.ShowDialog() == DialogResult.OK)
+                {
+                    File.WriteAllText(sfd.FileName, rtbOutput.Text);
+                    MessageBox.Show("Output exported successfully.", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+        }
+
+        // New: Search in Selected Files
+        private void BtnSearchFiles_Click(object sender, EventArgs e)
+        {
+            string searchTerm = txtSearchFiles.Text.Trim();
+            if (string.IsNullOrEmpty(searchTerm))
+            {
+                MessageBox.Show("Enter a search term.", "Search", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            lstFiles.ClearSelected();
+            for (int i = 0; i < fileService.SelectedFiles.Count; i++)
+            {
+                try
+                {
+                    string content = File.ReadAllText(fileService.SelectedFiles[i], selectedEncoding);
+                    if (content.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                    {
+                        lstFiles.SetSelected(i, true);
+                    }
+                }
+                catch { } // Skip errors
+            }
+        }
+
+        // New: Update Ignore Patterns
+        private void TxtIgnorePatterns_TextChanged(object sender, EventArgs e)
+        {
+            fileService.IgnorePatterns.Clear();
+            fileService.IgnorePatterns.AddRange(txtIgnorePatterns.Text.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()));
+            RefreshFilesInBackground();
+        }
+
+        // New: Encoding Changed
+        private void CmbEncoding_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            switch (cmbEncoding.SelectedItem.ToString())
+            {
+                case "UTF-8": selectedEncoding = Encoding.UTF8; break;
+                case "ASCII": selectedEncoding = Encoding.ASCII; break;
+                case "UTF-16": selectedEncoding = Encoding.Unicode; break;
+                case "UTF-32": selectedEncoding = Encoding.UTF32; break;
+                case "ISO-8859-1": selectedEncoding = Encoding.GetEncoding("ISO-8859-1"); break;
+            }
+            // Optionally re-process if needed, but here we leave it for next generate
+        }
+
+        // New: Background Refresh
+        private void RefreshFilesInBackground()
+        {
+            if (bgWorker.IsBusy) return;
+            progressBar.Visible = true;
+            btnRefreshExtensions.Enabled = false;
+            bgWorker.RunWorkerAsync();
+        }
+
+        private void BgWorker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            var progress = new Progress<int>(percent => bgWorker.ReportProgress(percent));
+            fileService.RefreshFilesAsync(progress).Wait();
+        }
+
+        private void BgWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            progressBar.Value = e.ProgressPercentage;
+        }
+
+        private void BgWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            progressBar.Visible = false;
+            btnRefreshExtensions.Enabled = true;
+            SyncUIWithService();
+        }
+
+        #endregion
+
+        #region Helpers
+
+        private void SortFilesAndRebind(bool orderByExtension)
+        {
+            // Preserve currently selected items (by relative path as displayed)
+            var selectedRel = lstFiles.SelectedItems
+                .Cast<string>()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // Sort underlying list of FULL PATHS
+            var sorted = orderByExtension
+                ? fileService.SelectedFiles
+                    .OrderBy(f => Path.GetExtension(f), StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+                : fileService.SelectedFiles
+                    .OrderBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+            fileService.SelectedFiles.Clear();
+            fileService.SelectedFiles.AddRange(sorted);
+
+            // Rebind UI
+            SyncUIWithService();
+
+            // Reselect previously selected items by their relative path
+            lstFiles.ClearSelected();
+            for (int i = 0; i < lstFiles.Items.Count; i++)
+            {
+                var rel = lstFiles.Items[i]?.ToString() ?? string.Empty;
+                if (selectedRel.Contains(rel))
+                    lstFiles.SetSelected(i, true);
+            }
+        }
+
         private void ProcessFiles()
         {
             rtbOutput.Clear();
+
             try
             {
                 for (int i = 0; i < fileService.SelectedFiles.Count; i++)
                 {
-                    string fileName = Path.GetFileName(fileService.SelectedFiles[i]);
                     string displayPath = fileService.SelectedFiles[i];
 
+                    // Header styling
                     rtbOutput.SelectionStart = rtbOutput.TextLength;
                     rtbOutput.SelectionLength = 0;
                     rtbOutput.SelectionColor = Color.FromArgb(0, 102, 204);
                     rtbOutput.SelectionFont = new Font(rtbOutput.Font, FontStyle.Bold);
                     rtbOutput.AppendText(displayPath + ":");
-
                     rtbOutput.SelectionColor = Color.Black;
                     rtbOutput.SelectionFont = new Font(rtbOutput.Font, FontStyle.Regular);
                     rtbOutput.AppendText("\n");
 
                     try
                     {
-                        string content = File.ReadAllText(fileService.SelectedFiles[i]);
+                        string content = File.ReadAllText(fileService.SelectedFiles[i], selectedEncoding); // Use selected encoding
                         rtbOutput.AppendText(content);
                     }
                     catch (Exception ex)
@@ -383,6 +717,9 @@ namespace FileContentToolkit
 
                 rtbOutput.SelectionStart = 0;
                 rtbOutput.ScrollToCaret();
+
+                // New: Update statistics
+                UpdateOutputStatistics();
             }
             catch (Exception ex)
             {
@@ -391,12 +728,14 @@ namespace FileContentToolkit
             }
         }
 
-        private void LstFiles_KeyDown(object sender, KeyEventArgs e)
+        // New: Update Output Statistics
+        private void UpdateOutputStatistics()
         {
-            if (e.KeyCode == Keys.Delete)
-            {
-                BtnRemoveFile_Click(sender, e);
-            }
+            string text = rtbOutput.Text;
+            int charCount = text.Length;
+            int lineCount = text.Split('\n').Length;
+            int byteSize = Encoding.UTF8.GetByteCount(text);
+            lblOutputStats.Text = $"Chars: {charCount:N0} | Lines: {lineCount:N0} | Size: {byteSize:N0} bytes";
         }
 
         private void SyncUIWithService()
@@ -410,45 +749,20 @@ namespace FileContentToolkit
             {
                 string relativePath = string.IsNullOrEmpty(fileService.FolderPath)
                     ? file
-                    : Path.GetRelativePath(fileService.FolderPath, file);
+                    : GetRelativePath(fileService.FolderPath, file);
+
                 lstFiles.Items.Add(relativePath);
             }
 
             lblFileCount.Text = $"Files: {fileService.SelectedFiles.Count}";
             chkIncludeSubfolders.Checked = fileService.IncludeSubfolders;
+            txtIgnorePatterns.Text = string.Join(", ", fileService.IgnorePatterns); // New
         }
-
-        // --- New Feature: Recreate Files from Output ---
-        private void BtnRecreateFiles_Click(object sender, EventArgs e)
-        {
-            using (var folderDialog = new FolderBrowserDialog())
-            {
-                folderDialog.Description = "Select a folder to recreate files in";
-                if (folderDialog.ShowDialog() == DialogResult.OK)
-                {
-                    string baseFolder = folderDialog.SelectedPath;
-                    try
-                    {
-                        int count = FileRecreator.RecreateFilesFromOutput(rtbOutput.Text, baseFolder, fileService.FolderPath);
-                        MessageBox.Show($"{count} file(s) created successfully.", "Recreate Files", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Error: " + ex.Message, "Recreate Files", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-            }
-        }
-
-        private void MiShowExtensionSummary_Click(object sender, EventArgs e)
-        {
-            ShowExtensionCounts(false); // uses the OK/AddedExtension logic + SyncUIWithService()
-        }
-
 
         private void ShowExtensionCounts(bool onlyConfigured)
         {
-            if (string.IsNullOrEmpty(fileService.FolderPath) || !Directory.Exists(fileService.FolderPath))
+            if (string.IsNullOrEmpty(fileService.FolderPath)
+                || !Directory.Exists(fileService.FolderPath))
             {
                 MessageBox.Show("Please set a valid folder path first.", "Folder Required",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -457,15 +771,13 @@ namespace FileContentToolkit
 
             using (var dlg = new ExtensionCountsForm(fileService))
             {
-                // optional: preset Configured-only toggle if you added a property
-                // dlg.ConfiguredOnly = onlyConfigured;
-
+                // dlg.ConfiguredOnly = onlyConfigured; // if you add such a property in the dialog
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
-                    // Update the listbox to reflect any newly added extension(s)
+                    // Reflect any newly added extension(s)
                     SyncUIWithService();
 
-                    // Optionally re-select the added extension:
+                    // Optionally reselect added extensions
                     if (dlg.AddedExtensions?.Count > 0)
                     {
                         lstExtensions.ClearSelected();
@@ -480,8 +792,21 @@ namespace FileContentToolkit
             }
         }
 
+        private static string GetRelativePath(string basePath, string fullPath)
+        {
+            Uri baseUri = new Uri(AppendDirectorySeparatorChar(basePath));
+            Uri fullUri = new Uri(fullPath);
+            Uri relativeUri = baseUri.MakeRelativeUri(fullUri);
+            return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', Path.DirectorySeparatorChar));
+        }
 
+        private static string AppendDirectorySeparatorChar(string path)
+        {
+            if (!path.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                return path + Path.DirectorySeparatorChar;
+            return path;
+        }
+
+        #endregion
     }
 }
-
-

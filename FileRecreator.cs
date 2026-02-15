@@ -129,3 +129,8 @@ namespace FileContentToolkit
         }
     }
 }
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 1772f3b (This change set upgrades the original WinForms app with a split-button on the)

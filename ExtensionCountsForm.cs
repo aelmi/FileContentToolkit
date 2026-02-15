@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Data;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -10,38 +11,45 @@ namespace FileContentToolkit
     {
         private readonly FileContentService _service;
 
-        // Track all extensions added during this dialog (for MainForm to reselect, etc.)
-        public System.Collections.Generic.List<string> AddedExtensions { get; private set; } = new System.Collections.Generic.List<string>();
+        public List<string> AddedExtensions { get; private set; } = new List<string>();
 
         public ExtensionCountsForm(FileContentService service)
         {
             _service = service;
             InitializeComponent();
 
-            if (IsDesignMode()) return; // allow designer to render safely
+            if (IsDesignMode()) return;
 
-            // Header text from service
+            // Header labels
             lblPath.Text = string.IsNullOrEmpty(_service.FolderPath)
                 ? "Folder: (not set)"
                 : $"Folder: {_service.FolderPath}";
             lblSubfolders.Text = _service.IncludeSubfolders
-                ? "Include subfolder(s): Yes"
-                : "Include subfolder(s): No";
+                ? "Include subfolders: Yes"
+                : "Include subfolders: No";
 
             // Events
             btnRefresh.Click += (s, e) => LoadData();
             btnClose.Click += (s, e) => Close();
             btnAddExtension.Click += BtnAddExtension_Click;
 
-            // Optional: double-click to add (uses multi-select handler too)
+            // Double-click to add
             gridCounts.CellDoubleClick += (s, e) =>
             {
                 if (e.RowIndex >= 0) AddSelectedRowsExtensions();
             };
 
-            // Ensure multi-select is enabled (also set in Designer)
+            // Multi-select support
             gridCounts.MultiSelect = true;
             gridCounts.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+
+            // Modern styling tweaks (beyond designer)
+            gridCounts.EnableHeadersVisualStyles = false;
+            gridCounts.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 102, 204);
+            gridCounts.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            gridCounts.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            gridCounts.DefaultCellStyle.SelectionBackColor = Color.FromArgb(51, 122, 183);
+            gridCounts.DefaultCellStyle.SelectionForeColor = Color.White;
 
             Shown += (s, e) => LoadData();
         }
@@ -55,29 +63,30 @@ namespace FileContentToolkit
         {
             var list = _service.GetAvailableExtensionCounts(false);
 
-            // Bind a DataTable so columns are sortable
             var dt = new DataTable();
             dt.Columns.Add("Extension", typeof(string));
             dt.Columns.Add("Count", typeof(int));
+
             foreach (var x in list)
+            {
                 dt.Rows.Add(x.Extension, x.Count);
+            }
 
             gridCounts.AutoGenerateColumns = true;
             gridCounts.DataSource = dt;
 
-            // Make columns clickable/sortable
             foreach (DataGridViewColumn c in gridCounts.Columns)
+            {
                 c.SortMode = DataGridViewColumnSortMode.Automatic;
+            }
 
-            // Friendly headers and sizing
             gridCounts.Columns["Extension"].HeaderText = "Extension";
             gridCounts.Columns["Count"].HeaderText = "Count";
             gridCounts.Columns["Count"].Width = 120;
+            gridCounts.Columns["Extension"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
-            // Footer total
-            lblTotal.Text = $"Total files: {list.Sum(r => r.Count)}";
+            lblTotal.Text = $"Total files: {list.Sum(r => r.Count):N0}";
         }
-
 
         private void BtnAddExtension_Click(object? sender, EventArgs e)
         {
@@ -86,10 +95,12 @@ namespace FileContentToolkit
 
         private void AddSelectedRowsExtensions()
         {
-            // Prefer SelectedRows; if none selected, fall back to CurrentRow
             var rows = gridCounts.SelectedRows.Cast<DataGridViewRow>().ToList();
+
             if (rows.Count == 0 && gridCounts.CurrentRow != null)
+            {
                 rows.Add(gridCounts.CurrentRow);
+            }
 
             if (rows.Count == 0)
                 return;
@@ -113,7 +124,6 @@ namespace FileContentToolkit
                 }
             }
 
-            // Close dialog; return OK only if at least one new extension was added
             DialogResult = anyAdded ? DialogResult.OK : DialogResult.Cancel;
             Close();
         }

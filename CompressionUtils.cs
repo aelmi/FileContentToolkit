@@ -8,7 +8,6 @@ namespace FileContentToolkit
 {
     public static class CompressionUtils
     {
-        // -------- GZip <-> Base64 --------
         public static string CompressToBase64(string text)
         {
             if (string.IsNullOrEmpty(text)) return string.Empty;
@@ -36,51 +35,27 @@ namespace FileContentToolkit
                 error = string.Empty;
                 return true;
             }
-            catch (FormatException)
-            {
-                text = string.Empty;
-                error = "The text is not valid Base64.";
-                return false;
-            }
-            catch (InvalidDataException)
-            {
-                text = string.Empty;
-                error = "The data is not valid GZip content.";
-                return false;
-            }
             catch (Exception ex)
             {
                 text = string.Empty;
-                error = "Unexpected error: " + ex.Message;
+                error = ex.Message;
                 return false;
             }
         }
 
-        // -------- Compress+Encrypt (AES-GCM) --------
-        // Output layout (all Base64 as a single string):
-        //  [salt(16)] [nonce(12)] [tag(16)] [ciphertext(n)]
         public static string CompressAndEncryptToBase64(string text, string password)
         {
             if (string.IsNullOrEmpty(text)) return string.Empty;
-            if (password == null) password = string.Empty;
-
-            // 1) Compress
-            string base64 = CompressToBase64(text); // compressed bytes in base64 for stability
+            string base64 = CompressToBase64(text);
             byte[] plain = Encoding.UTF8.GetBytes(base64);
-
-            // 2) Derive key
             byte[] salt = RandomBytes(16);
-            using var kdf = new Rfc2898DeriveBytes(password, salt, 100_000, HashAlgorithmName.SHA256);
+            using var kdf = new Rfc2898DeriveBytes(password ?? "", salt, 100_000, HashAlgorithmName.SHA256);
             byte[] key = kdf.GetBytes(32);
-
-            // 3) Encrypt (AES-GCM)
             byte[] nonce = RandomBytes(12);
             byte[] cipher = new byte[plain.Length];
             byte[] tag = new byte[16];
             using var aes = new AesGcm(key);
             aes.Encrypt(nonce, plain, cipher, tag);
-
-            // 4) Pack
             byte[] output = new byte[salt.Length + nonce.Length + tag.Length + cipher.Length];
             Buffer.BlockCopy(salt, 0, output, 0, salt.Length);
             Buffer.BlockCopy(nonce, 0, output, salt.Length, nonce.Length);
@@ -94,47 +69,21 @@ namespace FileContentToolkit
             try
             {
                 byte[] blob = Convert.FromBase64String(base64);
-                if (blob.Length < 16 + 12 + 16) throw new InvalidDataException("Payload too short.");
-
                 int offset = 0;
-                byte[] salt = new byte[16]; Buffer.BlockCopy(blob, offset, salt, 0, salt.Length); offset += salt.Length;
-                byte[] nonce = new byte[12]; Buffer.BlockCopy(blob, offset, nonce, 0, nonce.Length); offset += nonce.Length;
-                byte[] tag = new byte[16]; Buffer.BlockCopy(blob, offset, tag, 0, tag.Length); offset += tag.Length;
+                byte[] salt = new byte[16]; Buffer.BlockCopy(blob, offset, salt, 0, 16); offset += 16;
+                byte[] nonce = new byte[12]; Buffer.BlockCopy(blob, offset, nonce, 0, 12); offset += 12;
+                byte[] tag = new byte[16]; Buffer.BlockCopy(blob, offset, tag, 0, 16); offset += 16;
                 byte[] cipher = new byte[blob.Length - offset]; Buffer.BlockCopy(blob, offset, cipher, 0, cipher.Length);
-
-                using var kdf = new Rfc2898DeriveBytes(password ?? string.Empty, salt, 100_000, HashAlgorithmName.SHA256);
+                using var kdf = new Rfc2898DeriveBytes(password ?? "", salt, 100_000, HashAlgorithmName.SHA256);
                 byte[] key = kdf.GetBytes(32);
-
                 byte[] plain = new byte[cipher.Length];
-                using (var aes = new AesGcm(key))
-                {
-                    aes.Decrypt(nonce, cipher, tag, plain);
-                }
-
-                string compressedBase64 = Encoding.UTF8.GetString(plain);
-                if (!TryDecompressFromBase64(compressedBase64, out string decompressed, out string innerErr))
-                    throw new InvalidDataException(innerErr);
-
-                text = decompressed;
-                error = string.Empty;
-                return true;
-            }
-            catch (CryptographicException)
-            {
-                text = string.Empty;
-                error = "Invalid password or corrupted encrypted data.";
-                return false;
-            }
-            catch (FormatException)
-            {
-                text = string.Empty;
-                error = "The text is not valid Base64.";
-                return false;
+                using (var aes = new AesGcm(key)) aes.Decrypt(nonce, cipher, tag, plain);
+                return TryDecompressFromBase64(Encoding.UTF8.GetString(plain), out text, out error);
             }
             catch (Exception ex)
             {
                 text = string.Empty;
-                error = "Unexpected error: " + ex.Message;
+                error = ex.Message;
                 return false;
             }
         }

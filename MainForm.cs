@@ -808,5 +808,33 @@ namespace FileContentToolkit
         }
 
         #endregion
+
+        private void LstFiles_DragEnter(object sender, DragEventArgs e)
+        {
+            // Check if the data being dragged is a file
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
+            }
+            else
+            {
+                e.Effect = DragDropEffects.None;
+            }
+        }
+
+        private void LstFiles_DragDrop(object sender, DragEventArgs e)
+        {
+            // Retrieve the array of file/folder paths
+            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+
+            if (files != null && files.Length > 0)
+            {
+                // Add the files to the service
+                fileService.AddFiles(files);
+
+                // Update the UI to reflect new files
+                SyncUIWithService();
+            }
+        }
     }
 }

@@ -296,6 +296,7 @@ namespace FileContentToolkit
             // 
             // lstFiles
             // 
+            lstFiles.AllowDrop = true;
             lstFiles.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             lstFiles.ContextMenuStrip = ctxFiles;
             lstFiles.Font = new Font("Segoe UI", 9F);
@@ -305,7 +306,9 @@ namespace FileContentToolkit
             lstFiles.Name = "lstFiles";
             lstFiles.SelectionMode = SelectionMode.MultiExtended;
             lstFiles.Size = new Size(437, 304);
-            lstFiles.TabIndex = 0;
+            lstFiles.TabIndex = 0;            
+            lstFiles.DragDrop += new System.Windows.Forms.DragEventHandler(this.LstFiles_DragDrop);
+            lstFiles.DragEnter += new System.Windows.Forms.DragEventHandler(this.LstFiles_DragEnter);
             lstFiles.KeyDown += LstFiles_KeyDown;
             // 
             // ctxFiles

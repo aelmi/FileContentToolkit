@@ -1,0 +1,2116 @@
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\CompressionUtils.cs:
+using System;
+using System.IO;
+using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace FileContentToolkit
+{
+    public static class CompressionUtils
+    {
+        public static string CompressToBase64(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+            byte[] raw = Encoding.UTF8.GetBytes(text);
+            using var ms = new MemoryStream();
+            using (var gzip = new GZipStream(ms, CompressionMode.Compress, leaveOpen: true))
+                gzip.Write(raw, 0, raw.Length);
+            return Convert.ToBase64String(ms.ToArray());
+        }
+
+        public static string DecompressFromBase64(string base64)
+        {
+            byte[] bytes = Convert.FromBase64String(base64);
+            using var ms = new MemoryStream(bytes);
+            using var gzip = new GZipStream(ms, CompressionMode.Decompress);
+            using var sr = new StreamReader(gzip, Encoding.UTF8);
+            return sr.ReadToEnd();
+        }
+
+        public static bool TryDecompressFromBase64(string base64, out string text, out string error)
+        {
+            try
+            {
+                text = DecompressFromBase64(base64);
+                error = string.Empty;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                text = string.Empty;
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        public static string CompressAndEncryptToBase64(string text, string password)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+            string base64 = CompressToBase64(text);
+            byte[] plain = Encoding.UTF8.GetBytes(base64);
+            byte[] salt = RandomBytes(16);
+            using var kdf = new Rfc2898DeriveBytes(password ?? "", salt, 100_000, HashAlgorithmName.SHA256);
+            byte[] key = kdf.GetBytes(32);
+            byte[] nonce = RandomBytes(12);
+            byte[] cipher = new byte[plain.Length];
+            byte[] tag = new byte[16];
+            using var aes = new AesGcm(key);
+            aes.Encrypt(nonce, plain, cipher, tag);
+            byte[] output = new byte[salt.Length + nonce.Length + tag.Length + cipher.Length];
+            Buffer.BlockCopy(salt, 0, output, 0, salt.Length);
+            Buffer.BlockCopy(nonce, 0, output, salt.Length, nonce.Length);
+            Buffer.BlockCopy(tag, 0, output, salt.Length + nonce.Length, tag.Length);
+            Buffer.BlockCopy(cipher, 0, output, salt.Length + nonce.Length + tag.Length, cipher.Length);
+            return Convert.ToBase64String(output);
+        }
+
+        public static bool TryDecryptAndDecompressFromBase64(string base64, string password, out string text, out string error)
+        {
+            try
+            {
+                byte[] blob = Convert.FromBase64String(base64);
+                int offset = 0;
+                byte[] salt = new byte[16]; Buffer.BlockCopy(blob, offset, salt, 0, 16); offset += 16;
+                byte[] nonce = new byte[12]; Buffer.BlockCopy(blob, offset, nonce, 0, 12); offset += 12;
+                byte[] tag = new byte[16]; Buffer.BlockCopy(blob, offset, tag, 0, 16); offset += 16;
+                byte[] cipher = new byte[blob.Length - offset]; Buffer.BlockCopy(blob, offset, cipher, 0, cipher.Length);
+                using var kdf = new Rfc2898DeriveBytes(password ?? "", salt, 100_000, HashAlgorithmName.SHA256);
+                byte[] key = kdf.GetBytes(32);
+                byte[] plain = new byte[cipher.Length];
+                using (var aes = new AesGcm(key)) aes.Decrypt(nonce, cipher, tag, plain);
+                return TryDecompressFromBase64(Encoding.UTF8.GetString(plain), out text, out error);
+            }
+            catch (Exception ex)
+            {
+                text = string.Empty;
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        private static byte[] RandomBytes(int n)
+        {
+            byte[] b = new byte[n];
+            RandomNumberGenerator.Fill(b);
+            return b;
+        }
+    }
+}
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\ExtensionCountsForm.cs:
+using System;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+
+namespace FileContentToolkit
+{
+    public partial class ExtensionCountsForm : Form
+    {
+        private readonly FileContentService _service;
+
+        public List<string> AddedExtensions { get; private set; } = new List<string>();
+
+        public ExtensionCountsForm(FileContentService service)
+        {
+            _service = service;
+            InitializeComponent();
+
+            if (IsDesignMode()) return;
+
+            // Header labels
+            lblPath.Text = string.IsNullOrEmpty(_service.FolderPath)
+                ? "Folder: (not set)"
+                : $"Folder: {_service.FolderPath}";
+            lblSubfolders.Text = _service.IncludeSubfolders
+                ? "Include subfolders: Yes"
+                : "Include subfolders: No";
+
+            // Events
+            btnRefresh.Click += (s, e) => LoadData();
+            btnClose.Click += (s, e) => Close();
+            btnAddExtension.Click += BtnAddExtension_Click;
+
+            // Double-click to add
+            gridCounts.CellDoubleClick += (s, e) =>
+            {
+                if (e.RowIndex >= 0) AddSelectedRowsExtensions();
+            };
+
+            // Multi-select support
+            gridCounts.MultiSelect = true;
+            gridCounts.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+
+            // Modern styling tweaks (beyond designer)
+            gridCounts.EnableHeadersVisualStyles = false;
+            gridCounts.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 102, 204);
+            gridCounts.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            gridCounts.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            gridCounts.DefaultCellStyle.SelectionBackColor = Color.FromArgb(51, 122, 183);
+            gridCounts.DefaultCellStyle.SelectionForeColor = Color.White;
+
+            Shown += (s, e) => LoadData();
+        }
+
+        private bool IsDesignMode()
+        {
+            return LicenseManager.UsageMode == LicenseUsageMode.Designtime || (Site?.DesignMode ?? false);
+        }
+
+        private void LoadData()
+        {
+            var list = _service.GetAvailableExtensionCounts(false);
+
+            var dt = new DataTable();
+            dt.Columns.Add("Extension", typeof(string));
+            dt.Columns.Add("Count", typeof(int));
+
+            foreach (var x in list)
+            {
+                dt.Rows.Add(x.Extension, x.Count);
+            }
+
+            gridCounts.AutoGenerateColumns = true;
+            gridCounts.DataSource = dt;
+
+            foreach (DataGridViewColumn c in gridCounts.Columns)
+            {
+                c.SortMode = DataGridViewColumnSortMode.Automatic;
+            }
+
+            gridCounts.Columns["Extension"].HeaderText = "Extension";
+            gridCounts.Columns["Count"].HeaderText = "Count";
+            gridCounts.Columns["Count"].Width = 120;
+            gridCounts.Columns["Extension"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+
+            lblTotal.Text = $"Total files: {list.Sum(r => r.Count):N0}";
+        }
+
+        private void BtnAddExtension_Click(object? sender, EventArgs e)
+        {
+            AddSelectedRowsExtensions();
+        }
+
+        private void AddSelectedRowsExtensions()
+        {
+            var rows = gridCounts.SelectedRows.Cast<DataGridViewRow>().ToList();
+
+            if (rows.Count == 0 && gridCounts.CurrentRow != null)
+            {
+                rows.Add(gridCounts.CurrentRow);
+            }
+
+            if (rows.Count == 0)
+                return;
+
+            bool anyAdded = false;
+
+            foreach (var row in rows)
+            {
+                var extObj = row.Cells["Extension"].Value;
+                if (extObj == null) continue;
+
+                var ext = extObj.ToString()!.Trim();
+                if (string.Equals(ext, "(no ext)", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!ext.StartsWith(".")) ext = "." + ext;
+
+                if (!_service.Extensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+                {
+                    _service.AddExtension(ext);
+                    AddedExtensions.Add(ext);
+                    anyAdded = true;
+                }
+            }
+
+            DialogResult = anyAdded ? DialogResult.OK : DialogResult.Cancel;
+            Close();
+        }
+    }
+}
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\ExtensionCountsForm.resx:
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    Microsoft ResX Schema
+
+    Version 2.0
+
+    The primary goals of this format is to allow a simple XML format
+    that is mostly human readable. The generation and parsing of the
+    various data types are done through the TypeConverter classes
+    associated with the data types.
+
+    Example:
+
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+
+    There are any number of "resheader" rows that contain simple
+    name/value pairs.
+
+    Each data row contains a name, and value. The row also contains a
+    type or mimetype. Type corresponds to a .NET class that support
+    text/value conversion through the TypeConverter architecture.
+    Classes that don't support this are serialized and stored with the
+    mimetype set.
+
+    The mimetype is used for serialized objects, and tells the
+    ResXResourceReader how to depersist the object. This is currently not
+    extensible. For a given mimetype the value must be set accordingly:
+
+    Note - application/x-microsoft.net.object.binary.base64 is the format
+    that the ResXResourceWriter will generate, however the reader can
+    read any of the formats listed below.
+
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+</root>
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\FileContentService.cs:
+// C:\Users\alelm\OneDrive\Projects\FileContentToolkit\FileContentService.cs
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace FileContentToolkit
+{
+    public class FileContentService
+    {
+        public string FolderPath { get; private set; } = string.Empty;
+        public List<string> Extensions { get; } = new List<string>();
+        public List<string> SelectedFiles { get; } = new List<string>();
+        public bool IncludeSubfolders { get; set; } = false;
+        public List<string> IgnorePatterns { get; } = new List<string>(); // New: for smart ignore rules
+
+        public void SetFolderPath(string path)
+        {
+            FolderPath = path;
+            // RefreshFiles(); // Now called externally, as async
+        }
+
+        public void AddExtension(string ext)
+        {
+            if (!Extensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+            {
+                Extensions.Add(ext);
+                // RefreshFiles(); // Now external
+            }
+        }
+
+        public void RemoveExtension(string ext)
+        {
+            Extensions.RemoveAll(e => e.Equals(ext, StringComparison.OrdinalIgnoreCase));
+            // RefreshFiles();
+        }
+
+        public void SetExtensions(IEnumerable<string> exts)
+        {
+            Extensions.Clear();
+            Extensions.AddRange(exts);
+            // RefreshFiles();
+        }
+
+        public void SetIncludeSubfolders(bool include)
+        {
+            IncludeSubfolders = include;
+            // RefreshFiles();
+        }
+
+        public void AddFiles(IEnumerable<string> files)
+        {
+            foreach (var file in files)
+            {
+                if (!SelectedFiles.Contains(file))
+                    SelectedFiles.Add(file);
+            }
+        }
+
+        public void RemoveFileAt(int index)
+        {
+            if (index >= 0 && index < SelectedFiles.Count)
+                SelectedFiles.RemoveAt(index);
+        }
+
+        // New method to remove multiple files
+        public void RemoveFiles(IEnumerable<string> filesToRemove)
+        {
+            foreach (var file in filesToRemove.ToList()) // ToList() to avoid modification during enumeration
+            {
+                SelectedFiles.Remove(file);
+            }
+        }
+
+        // Modified: Added ignore rules matching (simple wildcard/path)
+        private bool IsIgnored(string filePath)
+        {
+            string relPath = GetRelativePath(FolderPath, filePath);
+            foreach (var pattern in IgnorePatterns)
+            {
+                if (pattern.StartsWith("*.")) // Extension ignore
+                {
+                    if (Path.GetExtension(filePath).Equals(pattern.Substring(1), StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                else if (pattern.EndsWith("/")) // Directory ignore
+                {
+                    if (relPath.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                else if (relPath.Contains(pattern, StringComparison.OrdinalIgnoreCase)) // Simple contains
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public void RefreshFiles()
+        {
+            SelectedFiles.Clear();
+
+            if (string.IsNullOrEmpty(FolderPath) || !Directory.Exists(FolderPath) || Extensions.Count == 0)
+                return;
+
+            var searchOption = IncludeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            var files = Directory.GetFiles(FolderPath, "*.*", searchOption)
+                .Where(file => Extensions.Contains(Path.GetExtension(file).ToLowerInvariant(), StringComparer.OrdinalIgnoreCase))
+                .Where(file => !IsIgnored(file)) // Apply ignore rules
+                .OrderBy(file => file)
+                .ToList();
+
+            SelectedFiles.AddRange(files);
+        }
+
+        // New: Async version for background scan
+        public async Task RefreshFilesAsync(IProgress<int> progress)
+        {
+            SelectedFiles.Clear();
+
+            if (string.IsNullOrEmpty(FolderPath) || !Directory.Exists(FolderPath) || Extensions.Count == 0)
+                return;
+
+            var searchOption = IncludeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            var allFiles = await Task.Run(() => Directory.EnumerateFiles(FolderPath, "*.*", searchOption).ToList());
+
+            var filteredFiles = new List<string>();
+            int total = allFiles.Count;
+            int count = 0;
+
+            foreach (var file in allFiles)
+            {
+                if (Extensions.Contains(Path.GetExtension(file).ToLowerInvariant(), StringComparer.OrdinalIgnoreCase) && !IsIgnored(file))
+                {
+                    filteredFiles.Add(file);
+                }
+                count++;
+                progress?.Report((int)((double)count / total * 100));
+                await Task.Delay(1); // Simulate for progress
+            }
+
+            filteredFiles.Sort();
+            SelectedFiles.AddRange(filteredFiles);
+        }
+
+        public List<(string Extension, int Count)> GetAvailableExtensionCounts(bool onlyConfigured)
+        {
+            var result = new List<(string, int)>();
+
+            if (string.IsNullOrEmpty(FolderPath) || !Directory.Exists(FolderPath))
+                return result;
+
+            var searchOption = IncludeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            IEnumerable<string> files;
+            try
+            {
+                files = Directory.EnumerateFiles(FolderPath, "*.*", searchOption);
+            }
+            catch
+            {
+                return result;
+            }
+
+            var groups = files
+            .GroupBy(f => (Path.GetExtension(f) ?? string.Empty).ToLowerInvariant())
+            .Select(g => new { Ext = string.IsNullOrEmpty(g.Key) ? "(no ext)" : g.Key, Count = g.Count() });
+
+            if (onlyConfigured && Extensions.Count > 0)
+            {
+                var set = new HashSet<string>(Extensions, StringComparer.OrdinalIgnoreCase);
+                groups = groups.Where(g => set.Contains(g.Ext.Equals("(no ext)") ? string.Empty : g.Ext));
+            }
+
+            return groups
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.Ext)
+            .Select(g => (g.Ext, g.Count))
+            .ToList();
+        }
+
+        // Helper from MainForm
+        private static string GetRelativePath(string basePath, string fullPath)
+        {
+            Uri baseUri = new Uri(AppendDirectorySeparatorChar(basePath));
+            Uri fullUri = new Uri(fullPath);
+            Uri relativeUri = baseUri.MakeRelativeUri(fullUri);
+            return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', Path.DirectorySeparatorChar));
+        }
+
+        private static string AppendDirectorySeparatorChar(string path)
+        {
+            if (!path.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                return path + Path.DirectorySeparatorChar;
+            return path;
+        }
+    }
+}
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\FileContentToolkit.csproj:
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>FileContentToolkit.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="FileContentToolkit.ico" />
+  </ItemGroup>
+
+</Project>
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\FileContentToolkit.sln:
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36109.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileContentToolkit", "FileContentToolkit.csproj", "{11358B60-344C-4CDB-98C3-13F2A47701D9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{11358B60-344C-4CDB-98C3-13F2A47701D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{11358B60-344C-4CDB-98C3-13F2A47701D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{11358B60-344C-4CDB-98C3-13F2A47701D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{11358B60-344C-4CDB-98C3-13F2A47701D9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {23714C4A-ED96-4809-BAB8-98CB2A32AA33}
+	EndGlobalSection
+EndGlobal
+
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\FileRecreator.cs:
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
+namespace FileContentToolkit
+{
+    public static class FileRecreator
+    {
+        /// <summary>
+        /// Parses the output and recreates files in the target folder.
+        /// </summary>
+        /// <param name="output">The output text (file paths and contents).</param>
+        /// <param name="baseFolder">The folder to create files in.</param>
+        /// <param name="originalBaseFolder">Unused, kept for compatibility.</param>
+        /// <returns>The number of files created.</returns>
+        public static int RecreateFilesFromOutput(string output, string baseFolder, string originalBaseFolder)
+        {
+            var lines = output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            string currentFile = null;
+            List<string> content = new List<string>();
+            int fileCount = 0;
+            var allFilePaths = new List<string>();
+
+            // First pass: collect all file paths
+            foreach (var line in lines)
+            {
+                if (line.EndsWith(":") && (line.Length > 2 && (line[1] == ':' || line.StartsWith(".\\"))))
+                {
+                    string filePath = line.TrimEnd(':');
+                    allFilePaths.Add(filePath);
+                }
+            }
+
+            // Find common root
+            string commonRoot = FindCommonRoot(allFilePaths);
+
+            // Second pass: create files
+            foreach (var line in lines)
+            {
+                if (line.EndsWith(":") && (line.Length > 2 && (line[1] == ':' || line.StartsWith(".\\"))))
+                {
+                    if (currentFile != null)
+                    {
+                        WriteFile(currentFile, content, baseFolder, commonRoot);
+                        fileCount++;
+                        content.Clear();
+                    }
+                    currentFile = line.TrimEnd(':');
+                }
+                else
+                {
+                    content.Add(line);
+                }
+            }
+            if (currentFile != null)
+            {
+                WriteFile(currentFile, content, baseFolder, commonRoot);
+                fileCount++;
+            }
+            return fileCount;
+        }
+
+        // Helper to find the common root of all file paths
+        private static string FindCommonRoot(List<string> paths)
+        {
+            if (paths == null || paths.Count == 0)
+                return string.Empty;
+
+            var splitPaths = paths
+                .Select(p => p.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries))
+                .ToList();
+
+            int minLength = splitPaths.Min(parts => parts.Length);
+            int commonLength = 0;
+
+            for (int i = 0; i < minLength; i++)
+            {
+                string part = splitPaths[0][i];
+                if (splitPaths.All(parts => string.Equals(parts[i], part, StringComparison.OrdinalIgnoreCase)))
+                {
+                    commonLength++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (commonLength == 0)
+                return string.Empty;
+
+            // For Windows drive root, add back the colon (e.g., "C:")
+            string[] firstParts = splitPaths[0];
+            string root = string.Join(Path.DirectorySeparatorChar.ToString(), firstParts.Take(commonLength));
+            if (root.Length == 2 && root[1] == ':')
+                root += Path.DirectorySeparatorChar;
+
+            return root;
+        }
+
+        private static void WriteFile(string filePath, List<string> content, string baseFolder, string commonRoot)
+        {
+            string relativePath = filePath;
+
+            if (!string.IsNullOrEmpty(commonRoot))
+            {
+                // Remove common root from filePath
+                if (filePath.StartsWith(commonRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    relativePath = filePath.Substring(commonRoot.Length);
+                    // Remove leading separator if present
+                    if (relativePath.StartsWith(Path.DirectorySeparatorChar.ToString()) || relativePath.StartsWith(Path.AltDirectorySeparatorChar.ToString()))
+                        relativePath = relativePath.Substring(1);
+                }
+                else
+                {
+                    relativePath = Path.GetFileName(filePath);
+                }
+            }
+            else
+            {
+                relativePath = Path.GetFileName(filePath);
+            }
+
+            string outPath = Path.Combine(baseFolder, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(outPath));
+            File.WriteAllText(outPath, string.Join(Environment.NewLine, content));
+        }
+    }
+}
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\MainForm.cs:
+using FileContentToolkit.Dialogs;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
+
+namespace FileContentToolkit
+{
+    public partial class MainForm : Form
+    {
+        private FileContentService fileService = new FileContentService();
+        private BackgroundWorker bgWorker; // For background scan
+        private Encoding selectedEncoding = Encoding.UTF8; // Default UTF-8
+
+        public MainForm()
+        {
+            InitializeComponent();
+
+            // Optional: keep these visual behaviors in code-behind
+            SetupHoverEffects();
+
+            // ToolTips are defined in Designer now; remove this if you moved them there:
+            // SetupToolTips();
+
+            // Ensure UI reflects service state
+            SyncUIWithService();
+
+            // Redundant with Designer, but harmless if left:
+            lstFiles.SelectionMode = SelectionMode.MultiExtended;
+
+            // New: Setup background worker for scan
+            bgWorker = new BackgroundWorker();
+            bgWorker.DoWork += BgWorker_DoWork;
+            bgWorker.RunWorkerCompleted += BgWorker_RunWorkerCompleted;
+            bgWorker.ProgressChanged += BgWorker_ProgressChanged;
+            bgWorker.WorkerReportsProgress = true;
+
+            // New: Populate extension suggestions
+            cmbExtension.Items.AddRange(new string[] { ".cs", ".txt", ".xml", ".json", ".md", ".html", ".css", ".js", ".py", ".java", ".cpp" });
+            cmbExtension.DropDownStyle = ComboBoxStyle.DropDown;
+
+            // New: Populate encodings
+            cmbEncoding.Items.AddRange(new object[] { "UTF-8", "ASCII", "UTF-16", "UTF-32", "ISO-8859-1" });
+            cmbEncoding.SelectedIndex = 0; // Default UTF-8
+        }
+
+        #region UI Polishing (Hover Effects)
+
+        private void SetupHoverEffects()
+        {
+            AddHoverEffect(btnBrowse, Color.FromArgb(51, 122, 183));
+            AddHoverEffect(btnAdd, Color.FromArgb(51, 122, 183));
+            AddHoverEffect(btnRemove, Color.FromArgb(220, 53, 69));
+            AddHoverEffect(btnAddMultipleFiles, Color.FromArgb(40, 167, 69));
+            AddHoverEffect(btnRemoveFile, Color.FromArgb(220, 53, 69));
+            AddHoverEffect(btnGenerate, Color.FromArgb(0, 123, 255));
+            AddHoverEffect(btnRefreshExtensions, Color.FromArgb(51, 122, 183));
+            AddHoverEffect(btnMoveUp, Color.LightGray);
+            AddHoverEffect(btnMoveDown, Color.LightGray);
+            AddHoverEffect(btnRecreateFiles, Color.FromArgb(40, 167, 69));
+            AddHoverEffect(btnExportOutput, Color.FromArgb(13, 110, 253)); // New
+            AddHoverEffect(btnSearchFiles, Color.FromArgb(108, 117, 125)); // New
+        }
+
+        private void AddHoverEffect(System.Windows.Forms.Button button, Color originalColor)
+        {
+            button.MouseEnter += (s, e) => button.BackColor = ControlPaint.Light(originalColor, 0.2f);
+            button.MouseLeave += (s, e) => button.BackColor = originalColor;
+        }
+
+        // Updated with new buttons
+        private void AddHoverEffects()
+        {
+            // For Copy, Edit, Export buttons
+            btnCopyOutput.MouseEnter += (s, e) => btnCopyOutput.BackColor = Color.FromArgb(230, 230, 230);
+            btnCopyOutput.MouseLeave += (s, e) => btnCopyOutput.BackColor = Color.FromArgb(248, 249, 250);
+
+            btnEditOutput.MouseEnter += (s, e) => btnEditOutput.BackColor = Color.FromArgb(230, 230, 230);
+            btnEditOutput.MouseLeave += (s, e) => btnEditOutput.BackColor = Color.FromArgb(248, 249, 250);
+
+            btnExportOutput.MouseEnter += (s, e) => btnExportOutput.BackColor = Color.FromArgb(230, 230, 230);
+            btnExportOutput.MouseLeave += (s, e) => btnExportOutput.BackColor = Color.FromArgb(248, 249, 250);
+
+            // For compression buttons - slightly darker on hover
+            btnCompress.MouseEnter += (s, e) => btnCompress.BackColor = Color.FromArgb(10, 88, 202);
+            btnCompress.MouseLeave += (s, e) => btnCompress.BackColor = Color.FromArgb(13, 110, 253);
+
+            btnDecompress.MouseEnter += (s, e) => btnDecompress.BackColor = Color.FromArgb(90, 98, 104);
+            btnDecompress.MouseLeave += (s, e) => btnDecompress.BackColor = Color.FromArgb(108, 117, 125);
+
+            btnCompressEnc.MouseEnter += (s, e) => btnCompressEnc.BackColor = Color.FromArgb(21, 115, 71);
+            btnCompressEnc.MouseLeave += (s, e) => btnCompressEnc.BackColor = Color.FromArgb(25, 135, 84);
+
+            btnDecompressEnc.MouseEnter += (s, e) => btnDecompressEnc.BackColor = Color.FromArgb(187, 45, 59);
+            btnDecompressEnc.MouseLeave += (s, e) => btnDecompressEnc.BackColor = Color.FromArgb(220, 53, 69);
+
+            // New: Search button
+            btnSearchFiles.MouseEnter += (s, e) => btnSearchFiles.BackColor = Color.FromArgb(90, 98, 104);
+            btnSearchFiles.MouseLeave += (s, e) => btnSearchFiles.BackColor = Color.FromArgb(108, 117, 125);
+        }
+
+        private string PromptForPassword(string title)
+        {
+            using var f = new Form()
+            {
+                Width = 380,
+                Height = 150,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = title,
+                StartPosition = FormStartPosition.CenterParent
+            };
+            var lbl = new Label() { Left = 15, Top = 12, Width = 340, Text = "Password:" };
+            var tb = new System.Windows.Forms.TextBox() { Left = 15, Top = 35, Width = 340, UseSystemPasswordChar = true };
+            var ok = new System.Windows.Forms.Button() { Text = "OK", Left = 190, Width = 75, Top = 70, DialogResult = DialogResult.OK };
+            var cancel = new System.Windows.Forms.Button() { Text = "Cancel", Left = 280, Width = 75, Top = 70, DialogResult = DialogResult.Cancel };
+            f.Controls.AddRange(new Control[] { lbl, tb, ok, cancel });
+            f.AcceptButton = ok; f.CancelButton = cancel;
+
+            return f.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
+        }
+
+        #endregion
+
+        #region (Optional) ToolTips if kept in code-behind
+        // If you moved tooltip strings to Designer, you can delete this method and the call.
+        private void SetupToolTips()
+        {
+            // IMPORTANT: Do NOT instantiate toolTip1 here anymore because the Designer owns it.
+            // toolTip1 = new System.Windows.Forms.ToolTip();
+
+            toolTip1.SetToolTip(btnBrowse, "Browse for a folder");
+            toolTip1.SetToolTip(btnAdd, "Add a file extension to the list");
+            toolTip1.SetToolTip(btnRemove, "Remove the selected file extension");
+            toolTip1.SetToolTip(btnRefreshExtensions, "Refresh the file list for the selected extensions");
+            toolTip1.SetToolTip(btnAddMultipleFiles, "Add one or more files manually to the selected files list");
+            toolTip1.SetToolTip(btnRemoveFile, "Remove the selected file from the list");
+            toolTip1.SetToolTip(btnMoveUp, "Move the selected file up");
+            toolTip1.SetToolTip(btnMoveDown, "Move the selected file down");
+            toolTip1.SetToolTip(btnGenerate, "Read and display the contents of the selected files");
+            toolTip1.SetToolTip(btnCopyOutput, "Copy the output to the clipboard");
+            toolTip1.SetToolTip(chkIncludeSubfolders, "Include files from subfolders");
+            toolTip1.SetToolTip(btnEditOutput, "Edit the output");
+            toolTip1.SetToolTip(btnRecreateFiles, "Recreate files and folders from the output below");
+            toolTip1.SetToolTip(txtIgnorePatterns, "Comma-separated ignore patterns (e.g., *.tmp, bin/)"); // New
+            toolTip1.SetToolTip(btnExportOutput, "Export output to file"); // New
+            toolTip1.SetToolTip(txtSearchFiles, "Search term for file contents"); // New
+            toolTip1.SetToolTip(btnSearchFiles, "Search in selected files"); // New
+            toolTip1.SetToolTip(cmbEncoding, "Select file encoding (default UTF-8)"); // New
+        }
+        #endregion
+
+        #region Event Handlers (wired from Designer)
+
+        private void BtnEditOutput_Click(object sender, EventArgs e)
+        {
+            rtbOutput.ReadOnly = !rtbOutput.ReadOnly;
+
+            if (rtbOutput.ReadOnly)
+            {
+                btnEditOutput.BackColor = Color.Transparent;
+                toolTip1.SetToolTip(btnEditOutput, "Edit the output");
+            }
+            else
+            {
+                btnEditOutput.BackColor = Color.LightYellow;
+                toolTip1.SetToolTip(btnEditOutput, "Click to finish editing");
+            }
+        }
+
+        private void BtnBrowse_Click(object sender, EventArgs e)
+        {
+            using (FolderBrowserDialog folderDialog = new FolderBrowserDialog())
+            {
+                folderDialog.Description = "Select a folder to scan for files";
+                if (folderDialog.ShowDialog() == DialogResult.OK)
+                {
+                    txtFolderPath.Text = folderDialog.SelectedPath;
+                }
+            }
+        }
+
+        private void MiSortByName_Click(object sender, EventArgs e)
+        {
+            SortFilesAndRebind(orderByExtension: false);
+        }
+
+        private void MiSortByExtension_Click(object sender, EventArgs e)
+        {
+            SortFilesAndRebind(orderByExtension: true);
+        }
+
+        private void BtnCompress_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var input = rtbOutput.Text ?? string.Empty;
+                var compressed = CompressionUtils.CompressToBase64(input);
+                rtbOutput.ReadOnly = false;
+                rtbOutput.Text = compressed;
+                rtbOutput.ReadOnly = true;
+
+                MessageBox.Show(
+                    $"Compressed with GZip → Base64.\n\nOriginal: {input.Length:N0} chars\nCompressed: {compressed.Length:N0} chars",
+                    "Compression", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Compression failed: " + ex.Message, "Compression",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnDecompress_Click(object sender, EventArgs e)
+        {
+            var base64 = rtbOutput.Text ?? string.Empty;
+            if (CompressionUtils.TryDecompressFromBase64(base64, out var text, out var error))
+            {
+                rtbOutput.ReadOnly = false;
+                rtbOutput.Text = text;
+                rtbOutput.ReadOnly = true;
+            }
+            else
+            {
+                MessageBox.Show(error, "Decompression", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void BtnCompressEnc_Click(object sender, EventArgs e)
+        {
+            string pwd;
+
+            using (var dialog = new PasswordDialog("Enter password for encryption"))
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    pwd = dialog.Password;
+                }
+                else
+                {
+                    return; // cancelled
+                }
+            }
+
+            if (string.IsNullOrEmpty(pwd)) return; // no password entered
+
+            try
+            {
+                var input = rtbOutput.Text ?? string.Empty;
+                var sealedBase64 = CompressionUtils.CompressAndEncryptToBase64(input, pwd);
+                rtbOutput.ReadOnly = false;
+                rtbOutput.Text = sealedBase64;
+                rtbOutput.ReadOnly = true;
+
+                MessageBox.Show("Compressed and encrypted (AES-GCM) successfully.",
+                    "Secure Compression", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Secure compression failed: " + ex.Message, "Secure Compression",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnDecompressEnc_Click(object sender, EventArgs e)
+        {
+            string pwd;
+
+            using (var dialog = new PasswordDialog("Enter password for decryption"))
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    pwd = dialog.Password;
+                }
+                else
+                {
+                    return; // cancelled
+                }
+            }
+
+            if (string.IsNullOrEmpty(pwd)) return; // no password entered
+
+            try
+            {
+                var input = rtbOutput.Text ?? string.Empty;
+
+                if (CompressionUtils.TryDecryptAndDecompressFromBase64(input, pwd, out string decrypted, out string error))
+                {
+                    rtbOutput.ReadOnly = false;
+                    rtbOutput.Text = decrypted;
+                    rtbOutput.ReadOnly = true;
+
+                    MessageBox.Show("Decrypted and decompressed (AES-GCM) successfully.",
+                        "Secure Decompression", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show($"Secure decompression failed: {error}", "Secure Decompression",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Secure decompression failed: " + ex.Message, "Secure Decompression",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void TxtFolderPath_TextChanged(object sender, EventArgs e)
+        {
+            fileService.SetFolderPath(txtFolderPath.Text);
+            RefreshFilesInBackground();
+        }
+
+        private void ChkIncludeSubfolders_CheckedChanged(object sender, EventArgs e)
+        {
+            fileService.SetIncludeSubfolders(chkIncludeSubfolders.Checked);
+            RefreshFilesInBackground();
+        }
+
+        private void BtnRefreshExtensions_Click(object sender, EventArgs e)
+        {
+            RefreshFilesInBackground();
+        }
+
+        private void BtnAdd_Click(object sender, EventArgs e)
+        {
+            string extension = cmbExtension.Text.Trim(); // Changed to cmb
+            if (string.IsNullOrEmpty(extension))
+            {
+                MessageBox.Show("Please enter a file extension.", "Input Required",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (!extension.StartsWith("."))
+                extension = "." + extension;
+
+            if (fileService.Extensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("This extension is already in the list.", "Duplicate Extension",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            fileService.AddExtension(extension);
+            SyncUIWithService();
+            cmbExtension.Text = "";
+            cmbExtension.Focus();
+            BtnRefreshExtensions_Click(null, null);
+        }
+
+        private void BtnRemove_Click(object sender, EventArgs e)
+        {
+            if (lstExtensions.SelectedIndex != -1)
+            {
+                string removedExtension = lstExtensions.SelectedItem.ToString();
+                fileService.RemoveExtension(removedExtension);
+                SyncUIWithService();
+            }
+            else
+            {
+                MessageBox.Show("Please select an extension to remove.", "Selection Required",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            BtnRefreshExtensions_Click(null, null);
+        }
+
+        private void CmbExtension_KeyPress(object sender, KeyPressEventArgs e) // Changed to cmb
+        {
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                BtnAdd_Click(sender, e);
+                e.Handled = true;
+            }
+        }
+
+        // Primary "Add Files" button
+        private void BtnAddMultipleFiles_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Title = "Select files to add";
+                openFileDialog.Multiselect = true;
+
+                // Build filter: each entry is "Description|pattern"
+                var filters = new List<string>
+            {
+                "All Files (*.*)|*.*"
+            };
+
+                if (fileService.Extensions.Count > 0)
+                {
+                    string patterns = string.Join("", fileService.Extensions.Select(ext => $"*{ext};"));
+                    patterns = patterns.TrimEnd(';');
+                    filters.Add($"Configured Extensions|{patterns}");
+                }
+
+                // Common code file types
+                filters.Add("C# (C-Sharp) (*.cs)|*.cs");
+                filters.Add("Text Files (*.txt)|*.txt");
+                filters.Add("XML Files (*.xml)|*.xml");
+                filters.Add("JSON Files (*.json)|*.json");
+                filters.Add("Markdown Files (*.md)|*.md");
+                filters.Add("HTML Files (*.html;*.htm)|*.html;*.htm");
+                filters.Add("CSS Files (*.css)|*.css");
+                filters.Add("JavaScript Files (*.js)|*.js");
+                filters.Add("Python Files (*.py)|*.py");
+                filters.Add("Java Files (*.java)|*.java");
+                filters.Add("C++ Files (*.cpp;*.h)|*.cpp;*.h");
+
+                openFileDialog.Filter = string.Join("|", filters);
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    fileService.AddFiles(openFileDialog.FileNames);
+                    SyncUIWithService();
+                }
+            }
+        }
+
+        private void BtnRemoveFile_Click(object sender, EventArgs e)
+        {
+            if (lstFiles.SelectedItems.Count > 0)
+            {
+                // Resolve selected displayed paths (relative) back to full paths
+                List<string> filesToRemove = new List<string>();
+                foreach (var selectedItem in lstFiles.SelectedItems)
+                {
+                    string displayedRelativePath = selectedItem.ToString();
+
+                    string actualFullPath = fileService.SelectedFiles.FirstOrDefault(f =>
+                        (string.IsNullOrEmpty(fileService.FolderPath) && f.Equals(displayedRelativePath, StringComparison.OrdinalIgnoreCase))
+                        ||
+                        (!string.IsNullOrEmpty(fileService.FolderPath)
+                            && GetRelativePath(fileService.FolderPath, f).Equals(displayedRelativePath, StringComparison.OrdinalIgnoreCase)));
+
+                    if (actualFullPath != null)
+                        filesToRemove.Add(actualFullPath);
+                }
+
+                if (filesToRemove.Any())
+                {
+                    fileService.RemoveFiles(filesToRemove);
+                    SyncUIWithService();
+                }
+            }
+            else
+            {
+                MessageBox.Show("Please select one or more files to remove.", "Selection Required",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void BtnMoveUp_Click(object sender, EventArgs e)
+        {
+            int idx = lstFiles.SelectedIndex;
+            if (idx > 0)
+            {
+                var files = fileService.SelectedFiles;
+                var temp = files[idx - 1];
+                files[idx - 1] = files[idx];
+                files[idx] = temp;
+
+                SyncUIWithService();
+                lstFiles.SelectedIndex = idx - 1;
+            }
+        }
+
+        private void BtnMoveDown_Click(object sender, EventArgs e)
+        {
+            int idx = lstFiles.SelectedIndex;
+            var files = fileService.SelectedFiles;
+            if (idx >= 0 && idx < files.Count - 1)
+            {
+                var temp = files[idx + 1];
+                files[idx + 1] = files[idx];
+                files[idx] = temp;
+
+                SyncUIWithService();
+                lstFiles.SelectedIndex = idx + 1;
+            }
+        }
+
+        private void BtnCopyOutput_Click(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(rtbOutput.Text))
+                Clipboard.SetText(rtbOutput.Text);
+        }
+
+        private void BtnGenerate_Click(object sender, EventArgs e)
+        {
+            if (fileService.SelectedFiles.Count == 0)
+            {
+                MessageBox.Show("Please add at least one file to process.", "Files Required",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            ProcessFiles();
+        }
+
+        private void LstFiles_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Delete)
+            {
+                BtnRemoveFile_Click(sender, e);
+            }
+        }
+
+        private void BtnRecreateFiles_Click(object sender, EventArgs e)
+        {
+            using (var folderDialog = new FolderBrowserDialog())
+            {
+                folderDialog.Description = "Select a folder to recreate files in";
+                if (folderDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string baseFolder = folderDialog.SelectedPath;
+                    try
+                    {
+                        int count = FileRecreator.RecreateFilesFromOutput(
+                            rtbOutput.Text,
+                            baseFolder,
+                            fileService.FolderPath);
+
+                        MessageBox.Show($"{count} file(s) created successfully.",
+                            "Recreate Files", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error: " + ex.Message,
+                            "Recreate Files", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private void MiShowExtensionSummary_Click(object sender, EventArgs e)
+        {
+            ShowExtensionCounts(false);
+        }
+
+        private void PnlRecreateInfo_Resize(object sender, EventArgs e)
+        {
+            // Keep the button aligned at the right, vertically centered
+            btnRecreateFiles.Left = pnlRecreateInfo.Width - btnRecreateFiles.Width - 20;
+            btnRecreateFiles.Top = (pnlRecreateInfo.Height - btnRecreateFiles.Height) / 2;
+        }
+
+        // New: Export Output
+        private void BtnExportOutput_Click(object sender, EventArgs e)
+        {
+            using (SaveFileDialog sfd = new SaveFileDialog())
+            {
+                sfd.Filter = "Text Files (*.txt)|*.txt|All Files (*.*)|*.*";
+                sfd.Title = "Export Output";
+                if (sfd.ShowDialog() == DialogResult.OK)
+                {
+                    File.WriteAllText(sfd.FileName, rtbOutput.Text);
+                    MessageBox.Show("Output exported successfully.", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+        }
+
+        // New: Search in Selected Files
+        private void BtnSearchFiles_Click(object sender, EventArgs e)
+        {
+            string searchTerm = txtSearchFiles.Text.Trim();
+            if (string.IsNullOrEmpty(searchTerm))
+            {
+                MessageBox.Show("Enter a search term.", "Search", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            lstFiles.ClearSelected();
+            for (int i = 0; i < fileService.SelectedFiles.Count; i++)
+            {
+                try
+                {
+                    string content = File.ReadAllText(fileService.SelectedFiles[i], selectedEncoding);
+                    if (content.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                    {
+                        lstFiles.SetSelected(i, true);
+                    }
+                }
+                catch { } // Skip errors
+            }
+        }
+
+        // New: Update Ignore Patterns
+        private void TxtIgnorePatterns_TextChanged(object sender, EventArgs e)
+        {
+            fileService.IgnorePatterns.Clear();
+            fileService.IgnorePatterns.AddRange(txtIgnorePatterns.Text.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()));
+            RefreshFilesInBackground();
+        }
+
+        // New: Encoding Changed
+        private void CmbEncoding_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            switch (cmbEncoding.SelectedItem.ToString())
+            {
+                case "UTF-8": selectedEncoding = Encoding.UTF8; break;
+                case "ASCII": selectedEncoding = Encoding.ASCII; break;
+                case "UTF-16": selectedEncoding = Encoding.Unicode; break;
+                case "UTF-32": selectedEncoding = Encoding.UTF32; break;
+                case "ISO-8859-1": selectedEncoding = Encoding.GetEncoding("ISO-8859-1"); break;
+            }
+            // Optionally re-process if needed, but here we leave it for next generate
+        }
+
+        // New: Background Refresh
+        private void RefreshFilesInBackground()
+        {
+            if (bgWorker.IsBusy) return;
+            progressBar.Visible = true;
+            btnRefreshExtensions.Enabled = false;
+            bgWorker.RunWorkerAsync();
+        }
+
+        private void BgWorker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            var progress = new Progress<int>(percent => bgWorker.ReportProgress(percent));
+            fileService.RefreshFilesAsync(progress).Wait();
+        }
+
+        private void BgWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            progressBar.Value = e.ProgressPercentage;
+        }
+
+        private void BgWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            progressBar.Visible = false;
+            btnRefreshExtensions.Enabled = true;
+            SyncUIWithService();
+        }
+
+        #endregion
+
+        #region Helpers
+
+        private void SortFilesAndRebind(bool orderByExtension)
+        {
+            // Preserve currently selected items (by relative path as displayed)
+            var selectedRel = lstFiles.SelectedItems
+                .Cast<string>()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // Sort underlying list of FULL PATHS
+            var sorted = orderByExtension
+                ? fileService.SelectedFiles
+                    .OrderBy(f => Path.GetExtension(f), StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+                : fileService.SelectedFiles
+                    .OrderBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+            fileService.SelectedFiles.Clear();
+            fileService.SelectedFiles.AddRange(sorted);
+
+            // Rebind UI
+            SyncUIWithService();
+
+            // Reselect previously selected items by their relative path
+            lstFiles.ClearSelected();
+            for (int i = 0; i < lstFiles.Items.Count; i++)
+            {
+                var rel = lstFiles.Items[i]?.ToString() ?? string.Empty;
+                if (selectedRel.Contains(rel))
+                    lstFiles.SetSelected(i, true);
+            }
+        }
+
+        private void ProcessFiles()
+        {
+            rtbOutput.Clear();
+
+            try
+            {
+                for (int i = 0; i < fileService.SelectedFiles.Count; i++)
+                {
+                    string displayPath = fileService.SelectedFiles[i];
+
+                    // Header styling
+                    rtbOutput.SelectionStart = rtbOutput.TextLength;
+                    rtbOutput.SelectionLength = 0;
+                    rtbOutput.SelectionColor = Color.FromArgb(0, 102, 204);
+                    rtbOutput.SelectionFont = new Font(rtbOutput.Font, FontStyle.Bold);
+                    rtbOutput.AppendText(displayPath + ":");
+                    rtbOutput.SelectionColor = Color.Black;
+                    rtbOutput.SelectionFont = new Font(rtbOutput.Font, FontStyle.Regular);
+                    rtbOutput.AppendText("\n");
+
+                    try
+                    {
+                        string content = File.ReadAllText(fileService.SelectedFiles[i], selectedEncoding); // Use selected encoding
+                        rtbOutput.AppendText(content);
+                    }
+                    catch (Exception ex)
+                    {
+                        rtbOutput.AppendText($"[Error reading file: {ex.Message}]");
+                    }
+
+                    if (i < fileService.SelectedFiles.Count - 1)
+                    {
+                        rtbOutput.AppendText("\n\n\n\n");
+                    }
+                }
+
+                rtbOutput.SelectionStart = 0;
+                rtbOutput.ScrollToCaret();
+
+                // New: Update statistics
+                UpdateOutputStatistics();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // New: Update Output Statistics
+        private void UpdateOutputStatistics()
+        {
+            string text = rtbOutput.Text;
+            int charCount = text.Length;
+            int lineCount = text.Split('\n').Length;
+            int byteSize = Encoding.UTF8.GetByteCount(text);
+            lblOutputStats.Text = $"Chars: {charCount:N0} | Lines: {lineCount:N0} | Size: {byteSize:N0} bytes";
+        }
+
+        private void SyncUIWithService()
+        {
+            lstExtensions.Items.Clear();
+            foreach (var ext in fileService.Extensions)
+                lstExtensions.Items.Add(ext);
+
+            lstFiles.Items.Clear();
+            foreach (var file in fileService.SelectedFiles)
+            {
+                string relativePath = string.IsNullOrEmpty(fileService.FolderPath)
+                    ? file
+                    : GetRelativePath(fileService.FolderPath, file);
+
+                lstFiles.Items.Add(relativePath);
+            }
+
+            lblFileCount.Text = $"Files: {fileService.SelectedFiles.Count}";
+            chkIncludeSubfolders.Checked = fileService.IncludeSubfolders;
+            txtIgnorePatterns.Text = string.Join(", ", fileService.IgnorePatterns); // New
+        }
+
+        private void ShowExtensionCounts(bool onlyConfigured)
+        {
+            if (string.IsNullOrEmpty(fileService.FolderPath)
+                || !Directory.Exists(fileService.FolderPath))
+            {
+                MessageBox.Show("Please set a valid folder path first.", "Folder Required",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using (var dlg = new ExtensionCountsForm(fileService))
+            {
+                // dlg.ConfiguredOnly = onlyConfigured; // if you add such a property in the dialog
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    // Reflect any newly added extension(s)
+                    SyncUIWithService();
+
+                    // Optionally reselect added extensions
+                    if (dlg.AddedExtensions?.Count > 0)
+                    {
+                        lstExtensions.ClearSelected();
+                        foreach (var ext in dlg.AddedExtensions)
+                        {
+                            int idx = lstExtensions.Items.IndexOf(ext);
+                            if (idx >= 0)
+                                lstExtensions.SetSelected(idx, true);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static string GetRelativePath(string basePath, string fullPath)
+        {
+            Uri baseUri = new Uri(AppendDirectorySeparatorChar(basePath));
+            Uri fullUri = new Uri(fullPath);
+            Uri relativeUri = baseUri.MakeRelativeUri(fullUri);
+            return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', Path.DirectorySeparatorChar));
+        }
+
+        private static string AppendDirectorySeparatorChar(string path)
+        {
+            if (!path.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                return path + Path.DirectorySeparatorChar;
+            return path;
+        }
+
+        #endregion
+
+        private void LstFiles_DragEnter(object sender, DragEventArgs e)
+        {
+            // Check if the data being dragged is a file
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
+            }
+            else
+            {
+                e.Effect = DragDropEffects.None;
+            }
+        }
+
+        private void LstFiles_DragDrop(object sender, DragEventArgs e)
+        {
+            // Retrieve the array of file/folder paths
+            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+
+            if (files != null && files.Length > 0)
+            {
+                // Add the files to the service
+                fileService.AddFiles(files);
+
+                // Update the UI to reflect new files
+                SyncUIWithService();
+            }
+        }
+    }
+}
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\MainForm.resx:
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    Microsoft ResX Schema
+
+    Version 2.0
+
+    The primary goals of this format is to allow a simple XML format
+    that is mostly human readable. The generation and parsing of the
+    various data types are done through the TypeConverter classes
+    associated with the data types.
+
+    Example:
+
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+
+    There are any number of "resheader" rows that contain simple
+    name/value pairs.
+
+    Each data row contains a name, and value. The row also contains a
+    type or mimetype. Type corresponds to a .NET class that support
+    text/value conversion through the TypeConverter architecture.
+    Classes that don't support this are serialized and stored with the
+    mimetype set.
+
+    The mimetype is used for serialized objects, and tells the
+    ResXResourceReader how to depersist the object. This is currently not
+    extensible. For a given mimetype the value must be set accordingly:
+
+    Note - application/x-microsoft.net.object.binary.base64 is the format
+    that the ResXResourceWriter will generate, however the reader can
+    read any of the formats listed below.
+
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <metadata name="toolTip1.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>359, 17</value>
+  </metadata>
+  <metadata name="ctxFiles.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>17, 17</value>
+  </metadata>
+  <metadata name="cmsAddDropdown.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>140, 17</value>
+  </metadata>
+  <metadata name="toolTip1.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>359, 17</value>
+  </metadata>
+</root>
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\PasswordDialog.cs:
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace FileContentToolkit.Dialogs
+{
+    public partial class PasswordDialog : Form
+    {
+        private Color btnOKDefaultColor = Color.FromArgb(0, 123, 255);
+        private Color btnOKHoverColor = Color.FromArgb(0, 86, 179);
+        private Color btnCancelDefaultColor = Color.FromArgb(108, 117, 125);
+        private Color btnCancelHoverColor = Color.FromArgb(90, 98, 104);
+
+        public string Password => txtPassword.Text;
+
+        public string Prompt
+        {
+            get => lblPrompt.Text;
+            set => lblPrompt.Text = value;
+        }
+
+        public string HeaderText
+        {
+            get => lblHeader.Text;
+            set => lblHeader.Text = "🔐 " + value;
+        }
+
+        public PasswordDialog() : this("Enter Password", "Enter password:")
+        {
+        }
+
+        public PasswordDialog(string title) : this(title, "Enter password:")
+        {
+        }
+
+        public PasswordDialog(string title, string prompt)
+        {
+            InitializeComponent();
+
+            this.Text = title;
+            this.HeaderText = title;
+            this.Prompt = prompt;
+        }
+
+        private void PasswordDialog_Shown(object sender, EventArgs e)
+        {
+            txtPassword.Focus();
+            txtPassword.Select();
+        }
+
+        private void ChkShowPassword_CheckedChanged(object sender, EventArgs e)
+        {
+            txtPassword.UseSystemPasswordChar = !chkShowPassword.Checked;
+        }
+
+        private void TxtPassword_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                btnOK.PerformClick();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void BtnOK_MouseEnter(object sender, EventArgs e)
+        {
+            btnOK.BackColor = btnOKHoverColor;
+        }
+
+        private void BtnOK_MouseLeave(object sender, EventArgs e)
+        {
+            btnOK.BackColor = btnOKDefaultColor;
+        }
+
+        private void BtnCancel_MouseEnter(object sender, EventArgs e)
+        {
+            btnCancel.BackColor = btnCancelHoverColor;
+        }
+
+        private void BtnCancel_MouseLeave(object sender, EventArgs e)
+        {
+            btnCancel.BackColor = btnCancelDefaultColor;
+        }
+
+        /// <summary>
+        /// Shows the password dialog and returns the entered password, or null if cancelled.
+        /// </summary>
+        public static string ShowDialog(IWin32Window owner, string title, string prompt = "Enter password:")
+        {
+            using (var dialog = new PasswordDialog(title, prompt))
+            {
+                if (dialog.ShowDialog(owner) == DialogResult.OK)
+                {
+                    return dialog.Password;
+                }
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Validates that the password meets minimum requirements.
+        /// </summary>
+        public bool ValidatePassword(out string errorMessage)
+        {
+            errorMessage = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(Password))
+            {
+                errorMessage = "Password cannot be empty.";
+                return false;
+            }
+
+            if (Password.Length < 4)
+            {
+                errorMessage = "Password must be at least 4 characters long.";
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Shows the dialog with password validation.
+        /// </summary>
+        public static string ShowDialogWithValidation(IWin32Window owner, string title, string prompt = "Enter password:")
+        {
+            using (var dialog = new PasswordDialog(title, prompt))
+            {
+                while (true)
+                {
+                    if (dialog.ShowDialog(owner) == DialogResult.OK)
+                    {
+                        if (dialog.ValidatePassword(out string errorMessage))
+                        {
+                            return dialog.Password;
+                        }
+                        else
+                        {
+                            MessageBox.Show(errorMessage, "Invalid Password",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            dialog.txtPassword.Clear();
+                            dialog.txtPassword.Focus();
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        return null; // User cancelled
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\PasswordDialog.resx:
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+</root>
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\Program.cs:
+using FileContentToolkit;
+
+namespace FolderContentViewer
+{
+    internal static class Program
+    {
+        /// <summary>
+        ///  The main entry point for the application.
+        /// </summary>
+        [STAThread]
+        static void Main()
+        {
+            // To customize application configuration such as set high DPI settings or default font,
+            // see https://aka.ms/applicationconfiguration.
+            ApplicationConfiguration.Initialize();
+            Application.Run(new MainForm());
+        }
+    }
+}
+
+
+
+C:\Users\alelm\OneDrive\Projects\FileContentToolkit\SplitButton.cs:
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace FileContentToolkit.UI
+{
+    public class SplitButton : Button
+    {
+        public ContextMenuStrip? DropDownMenu { get; set; }
+        public int DropDownWidth { get; set; } = 22;
+        public bool ShowSplit { get; set; } = true;
+
+        private bool _openingFromSplit = false;
+
+        private Rectangle SplitRect => new Rectangle(Width - DropDownWidth, 0, DropDownWidth, Height);
+
+        protected override void OnPaint(PaintEventArgs pevent)
+        {
+            base.OnPaint(pevent);
+            if (!ShowSplit) return;
+
+            var g = pevent.Graphics;
+            var rect = ClientRectangle;
+            var arrowRect = SplitRect;
+
+            // Separator line
+            using (var pen = new Pen(Color.FromArgb(180, 180, 180)))
+            {
+                g.DrawLine(pen, arrowRect.Left, rect.Top + 4, arrowRect.Left, rect.Bottom - 4);
+            }
+
+            // Dropdown caret
+            TextRenderer.DrawText(
+                g,
+                "▼",
+                new Font(Font.FontFamily, Math.Max(8, Font.Size - 1), FontStyle.Bold),
+                arrowRect,
+                Enabled ? Color.White : Color.FromArgb(200, 200, 200),
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
+            );
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            if (ShowSplit && e.Button == MouseButtons.Left && SplitRect.Contains(e.Location))
+            {
+                _openingFromSplit = true; // mark dropdown click
+                DropDownMenu?.Show(this, new Point(0, Height));
+                return; // prevent normal click
+            }
+            base.OnMouseDown(e);
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            if (_openingFromSplit)
+            {
+                _openingFromSplit = false;
+                return; // swallow click
+            }
+            base.OnMouseUp(e);
+        }
+
+        protected override void OnClick(EventArgs e)
+        {
+            if (_openingFromSplit)
+            {
+                _openingFromSplit = false;
+                return; // don’t raise Click
+            }
+            base.OnClick(e);
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            Invalidate();
+        }
+    }
+}

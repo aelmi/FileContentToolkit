@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using FileContentToolkit.Filters;
 
 namespace FileContentToolkit
 {
@@ -13,13 +15,18 @@ namespace FileContentToolkit
         public string FolderPath { get; private set; } = string.Empty;
         public List<string> Extensions { get; } = new List<string>();
         public List<string> SelectedFiles { get; } = new List<string>();
-        public bool IncludeSubfolders { get; set; } = false;
-        public List<string> IgnorePatterns { get; } = new List<string>(); // New: for smart ignore rules
+        public bool IncludeSubfolders { get; set; } = true;
+        public List<string> IgnorePatterns { get; } = new List<string>();
+
+        // Filter settings (driven by AppSettings via MainForm)
+        public long MaxFileSizeBytes { get; set; } = 0; // 0 = unlimited
+        public bool SkipBinaryFiles { get; set; } = true;
+        public bool AutoDetectEncoding { get; set; } = true;
+        public bool UseGitIgnoreFiles { get; set; } = true;
 
         public void SetFolderPath(string path)
         {
             FolderPath = path;
-            // RefreshFiles(); // Now called externally, as async
         }
 
         public void AddExtension(string ext)
@@ -27,34 +34,31 @@ namespace FileContentToolkit
             if (!Extensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
             {
                 Extensions.Add(ext);
-                // RefreshFiles(); // Now external
             }
         }
 
         public void RemoveExtension(string ext)
         {
             Extensions.RemoveAll(e => e.Equals(ext, StringComparison.OrdinalIgnoreCase));
-            // RefreshFiles();
         }
 
         public void SetExtensions(IEnumerable<string> exts)
         {
             Extensions.Clear();
             Extensions.AddRange(exts);
-            // RefreshFiles();
         }
 
         public void SetIncludeSubfolders(bool include)
         {
             IncludeSubfolders = include;
-            // RefreshFiles();
         }
 
         public void AddFiles(IEnumerable<string> files)
         {
+            var existing = new HashSet<string>(SelectedFiles, StringComparer.OrdinalIgnoreCase);
             foreach (var file in files)
             {
-                if (!SelectedFiles.Contains(file))
+                if (existing.Add(file))
                     SelectedFiles.Add(file);
             }
         }
@@ -65,32 +69,37 @@ namespace FileContentToolkit
                 SelectedFiles.RemoveAt(index);
         }
 
-        // New method to remove multiple files
         public void RemoveFiles(IEnumerable<string> filesToRemove)
         {
-            foreach (var file in filesToRemove.ToList()) // ToList() to avoid modification during enumeration
-            {
-                SelectedFiles.Remove(file);
-            }
+            var set = new HashSet<string>(filesToRemove, StringComparer.OrdinalIgnoreCase);
+            SelectedFiles.RemoveAll(f => set.Contains(f));
         }
 
-        // Modified: Added ignore rules matching (simple wildcard/path)
-        private bool IsIgnored(string filePath)
+        /// <summary>Reads a file using the configured encoding strategy.</summary>
+        public string ReadFileText(string path, Encoding fallback)
         {
-            string relPath = GetRelativePath(FolderPath, filePath);
-            foreach (var pattern in IgnorePatterns)
+            var enc = AutoDetectEncoding ? EncodingDetector.Detect(path, fallback) : fallback;
+            return File.ReadAllText(path, enc);
+        }
+
+        private static bool IsIgnoredByUserPatterns(string filePath, string folder, IReadOnlyList<string> patterns)
+        {
+            if (patterns.Count == 0) return false;
+            string relPath = string.IsNullOrEmpty(folder) ? filePath : Path.GetRelativePath(folder, filePath);
+            for (int i = 0; i < patterns.Count; i++)
             {
-                if (pattern.StartsWith("*.")) // Extension ignore
+                var pattern = patterns[i];
+                if (pattern.StartsWith("*."))
                 {
                     if (Path.GetExtension(filePath).Equals(pattern.Substring(1), StringComparison.OrdinalIgnoreCase))
                         return true;
                 }
-                else if (pattern.EndsWith("/")) // Directory ignore
+                else if (pattern.EndsWith("/"))
                 {
                     if (relPath.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
                         return true;
                 }
-                else if (relPath.Contains(pattern, StringComparison.OrdinalIgnoreCase)) // Simple contains
+                else if (relPath.Contains(pattern, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -106,43 +115,111 @@ namespace FileContentToolkit
                 return;
 
             var searchOption = IncludeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-            var files = Directory.GetFiles(FolderPath, "*.*", searchOption)
-                .Where(file => Extensions.Contains(Path.GetExtension(file).ToLowerInvariant(), StringComparer.OrdinalIgnoreCase))
-                .Where(file => !IsIgnored(file)) // Apply ignore rules
-                .OrderBy(file => file)
+            var extSet = new HashSet<string>(Extensions, StringComparer.OrdinalIgnoreCase);
+            var patterns = IgnorePatterns.ToList();
+            var folder = FolderPath;
+            var gitIgnore = UseGitIgnoreFiles ? GitIgnoreParser.FromFolder(folder) : new GitIgnoreParser();
+            var maxBytes = MaxFileSizeBytes;
+            var skipBinary = SkipBinaryFiles;
+
+            var files = Directory.EnumerateFiles(FolderPath, "*.*", searchOption)
+                .Where(file => extSet.Contains(Path.GetExtension(file)))
+                .Where(file => PassesAllFilters(file, folder, patterns, gitIgnore, maxBytes, skipBinary))
+                .OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             SelectedFiles.AddRange(files);
         }
 
-        // New: Async version for background scan
-        public async Task RefreshFilesAsync(IProgress<int> progress)
+        public async Task RefreshFilesAsync(IProgress<int> progress, CancellationToken ct)
         {
-            SelectedFiles.Clear();
+            var folder = FolderPath;
+            var extensions = Extensions.ToList();
+            var patterns = IgnorePatterns.ToList();
+            var includeSubfolders = IncludeSubfolders;
+            var useGitIgnore = UseGitIgnoreFiles;
+            var maxBytes = MaxFileSizeBytes;
+            var skipBinary = SkipBinaryFiles;
 
-            if (string.IsNullOrEmpty(FolderPath) || !Directory.Exists(FolderPath) || Extensions.Count == 0)
-                return;
-
-            var searchOption = IncludeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-            var allFiles = await Task.Run(() => Directory.EnumerateFiles(FolderPath, "*.*", searchOption).ToList());
-
-            var filteredFiles = new List<string>();
-            int total = allFiles.Count;
-            int count = 0;
-
-            foreach (var file in allFiles)
+            if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder) || extensions.Count == 0)
             {
-                if (Extensions.Contains(Path.GetExtension(file).ToLowerInvariant(), StringComparer.OrdinalIgnoreCase) && !IsIgnored(file))
-                {
-                    filteredFiles.Add(file);
-                }
-                count++;
-                progress?.Report((int)((double)count / total * 100));
-                await Task.Delay(1); // Simulate for progress
+                SelectedFiles.Clear();
+                progress?.Report(100);
+                return;
             }
 
-            filteredFiles.Sort();
-            SelectedFiles.AddRange(filteredFiles);
+            var result = await Task.Run(() =>
+            {
+                var extSet = new HashSet<string>(extensions, StringComparer.OrdinalIgnoreCase);
+                var gitIgnore = useGitIgnore ? GitIgnoreParser.FromFolder(folder) : new GitIgnoreParser();
+                var enumOptions = new EnumerationOptions
+                {
+                    IgnoreInaccessible = true,
+                    RecurseSubdirectories = includeSubfolders
+                };
+
+                var allFiles = Directory.EnumerateFiles(folder, "*.*", enumOptions).ToList();
+                ct.ThrowIfCancellationRequested();
+
+                var filtered = new List<string>(allFiles.Count);
+                int total = Math.Max(1, allFiles.Count);
+                int lastReported = -1;
+
+                for (int i = 0; i < allFiles.Count; i++)
+                {
+                    if ((i & 0x3FF) == 0) ct.ThrowIfCancellationRequested();
+                    var file = allFiles[i];
+                    if (extSet.Contains(Path.GetExtension(file)) &&
+                        PassesAllFilters(file, folder, patterns, gitIgnore, maxBytes, skipBinary))
+                    {
+                        filtered.Add(file);
+                    }
+
+                    int pct = (int)((long)(i + 1) * 100 / total);
+                    if (pct != lastReported)
+                    {
+                        lastReported = pct;
+                        progress?.Report(pct);
+                    }
+                }
+
+                filtered.Sort(StringComparer.OrdinalIgnoreCase);
+                return filtered;
+            }, ct);
+
+            SelectedFiles.Clear();
+            SelectedFiles.AddRange(result);
+        }
+
+        private static bool PassesAllFilters(
+            string file,
+            string folder,
+            IReadOnlyList<string> patterns,
+            GitIgnoreParser gitIgnore,
+            long maxBytes,
+            bool skipBinary)
+        {
+            if (IsIgnoredByUserPatterns(file, folder, patterns)) return false;
+
+            if (gitIgnore.HasRules)
+            {
+                var rel = Path.GetRelativePath(folder, file);
+                if (gitIgnore.IsIgnored(rel)) return false;
+            }
+
+            if (maxBytes > 0)
+            {
+                try
+                {
+                    var len = new FileInfo(file).Length;
+                    if (len > maxBytes) return false;
+                }
+                catch { return false; }
+            }
+
+            if (skipBinary && BinaryFileDetector.IsBinary(file)) return false;
+
+            return true;
         }
 
         public List<(string Extension, int Count)> GetAvailableExtensionCounts(bool onlyConfigured)
@@ -178,22 +255,6 @@ namespace FileContentToolkit
             .ThenBy(g => g.Ext)
             .Select(g => (g.Ext, g.Count))
             .ToList();
-        }
-
-        // Helper from MainForm
-        private static string GetRelativePath(string basePath, string fullPath)
-        {
-            Uri baseUri = new Uri(AppendDirectorySeparatorChar(basePath));
-            Uri fullUri = new Uri(fullPath);
-            Uri relativeUri = baseUri.MakeRelativeUri(fullUri);
-            return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', Path.DirectorySeparatorChar));
-        }
-
-        private static string AppendDirectorySeparatorChar(string path)
-        {
-            if (!path.EndsWith(Path.DirectorySeparatorChar.ToString()))
-                return path + Path.DirectorySeparatorChar;
-            return path;
         }
     }
 }

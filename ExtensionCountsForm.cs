@@ -85,6 +85,8 @@ namespace FileContentToolkit
             gridCounts.Columns["Count"].Width = 120;
             gridCounts.Columns["Extension"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
+            gridCounts.Sort(gridCounts.Columns["Extension"], ListSortDirection.Ascending);
+
             lblTotal.Text = $"Total files: {list.Sum(r => r.Count):N0}";
         }
 

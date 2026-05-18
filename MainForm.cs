@@ -5,9 +5,11 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
@@ -17,8 +19,14 @@ namespace FileContentToolkit
     public partial class MainForm : Form
     {
         private FileContentService fileService = new FileContentService();
-        private BackgroundWorker bgWorker; // For background scan
         private Encoding selectedEncoding = Encoding.UTF8; // Default UTF-8
+
+        private CancellationTokenSource? _scanCts;
+        private readonly System.Windows.Forms.Timer _refreshDebounce;
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int wMsg, IntPtr wParam, IntPtr lParam);
+        private const int WM_SETREDRAW = 0x000B;
 
         public MainForm()
         {
@@ -36,12 +44,13 @@ namespace FileContentToolkit
             // Redundant with Designer, but harmless if left:
             lstFiles.SelectionMode = SelectionMode.MultiExtended;
 
-            // New: Setup background worker for scan
-            bgWorker = new BackgroundWorker();
-            bgWorker.DoWork += BgWorker_DoWork;
-            bgWorker.RunWorkerCompleted += BgWorker_RunWorkerCompleted;
-            bgWorker.ProgressChanged += BgWorker_ProgressChanged;
-            bgWorker.WorkerReportsProgress = true;
+            // Debounce rapid typing in folder path / ignore patterns so we don't kick off a scan per keystroke.
+            _refreshDebounce = new System.Windows.Forms.Timer { Interval = 400 };
+            _refreshDebounce.Tick += (s, e) =>
+            {
+                _refreshDebounce.Stop();
+                _ = RefreshFilesInBackground();
+            };
 
             // New: Populate extension suggestions
             cmbExtension.Items.AddRange(new string[] { ".cs", ".txt", ".xml", ".json", ".md", ".html", ".css", ".js", ".py", ".java", ".cpp" });
@@ -50,6 +59,9 @@ namespace FileContentToolkit
             // New: Populate encodings
             cmbEncoding.Items.AddRange(new object[] { "UTF-8", "ASCII", "UTF-16", "UTF-32", "ISO-8859-1" });
             cmbEncoding.SelectedIndex = 0; // Default UTF-8
+
+            // Feature toolbar (recent folders, options, presets, watch, search toggles, find/replace)
+            InitExtraFeatures();
         }
 
         #region UI Polishing (Hover Effects)
@@ -63,8 +75,8 @@ namespace FileContentToolkit
             AddHoverEffect(btnRemoveFile, Color.FromArgb(220, 53, 69));
             AddHoverEffect(btnGenerate, Color.FromArgb(0, 123, 255));
             AddHoverEffect(btnRefreshExtensions, Color.FromArgb(51, 122, 183));
-            AddHoverEffect(btnMoveUp, Color.LightGray);
-            AddHoverEffect(btnMoveDown, Color.LightGray);
+            AddHoverEffect(btnMoveUp, Color.FromArgb(233, 236, 239));
+            AddHoverEffect(btnMoveDown, Color.FromArgb(233, 236, 239));
             AddHoverEffect(btnRecreateFiles, Color.FromArgb(40, 167, 69));
             AddHoverEffect(btnExportOutput, Color.FromArgb(13, 110, 253)); // New
             AddHoverEffect(btnSearchFiles, Color.FromArgb(108, 117, 125)); // New
@@ -183,6 +195,8 @@ namespace FileContentToolkit
                 if (folderDialog.ShowDialog() == DialogResult.OK)
                 {
                     txtFolderPath.Text = folderDialog.SelectedPath;
+                    _settings.AddRecentFolder(folderDialog.SelectedPath);
+                    _settings.Save();
                 }
             }
         }
@@ -316,18 +330,26 @@ namespace FileContentToolkit
         private void TxtFolderPath_TextChanged(object sender, EventArgs e)
         {
             fileService.SetFolderPath(txtFolderPath.Text);
-            RefreshFilesInBackground();
+            RestartWatcherIfEnabled();
+            DebounceRefresh();
         }
 
         private void ChkIncludeSubfolders_CheckedChanged(object sender, EventArgs e)
         {
             fileService.SetIncludeSubfolders(chkIncludeSubfolders.Checked);
-            RefreshFilesInBackground();
+            RestartWatcherIfEnabled();
+            _ = RefreshFilesInBackground();
         }
 
         private void BtnRefreshExtensions_Click(object sender, EventArgs e)
         {
-            RefreshFilesInBackground();
+            _ = RefreshFilesInBackground();
+        }
+
+        private void DebounceRefresh()
+        {
+            _refreshDebounce.Stop();
+            _refreshDebounce.Start();
         }
 
         private void BtnAdd_Click(object sender, EventArgs e)
@@ -354,7 +376,7 @@ namespace FileContentToolkit
             SyncUIWithService();
             cmbExtension.Text = "";
             cmbExtension.Focus();
-            BtnRefreshExtensions_Click(null, null);
+            _ = RefreshFilesInBackground();
         }
 
         private void BtnRemove_Click(object sender, EventArgs e)
@@ -370,7 +392,7 @@ namespace FileContentToolkit
                 MessageBox.Show("Please select an extension to remove.", "Selection Required",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            BtnRefreshExtensions_Click(null, null);
+            _ = RefreshFilesInBackground();
         }
 
         private void CmbExtension_KeyPress(object sender, KeyPressEventArgs e) // Changed to cmb
@@ -495,7 +517,7 @@ namespace FileContentToolkit
                 Clipboard.SetText(rtbOutput.Text);
         }
 
-        private void BtnGenerate_Click(object sender, EventArgs e)
+        private async void BtnGenerate_Click(object sender, EventArgs e)
         {
             if (fileService.SelectedFiles.Count == 0)
             {
@@ -503,7 +525,7 @@ namespace FileContentToolkit
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            ProcessFiles();
+            await ProcessFilesAsync();
         }
 
         private void LstFiles_KeyDown(object sender, KeyEventArgs e)
@@ -568,8 +590,9 @@ namespace FileContentToolkit
             }
         }
 
-        // New: Search in Selected Files
-        private void BtnSearchFiles_Click(object sender, EventArgs e)
+        // Async search: supports regex / case / whole-word toggles.
+        // Records the search term in recent history and shows a match count.
+        private async void BtnSearchFiles_Click(object sender, EventArgs e)
         {
             string searchTerm = txtSearchFiles.Text.Trim();
             if (string.IsNullOrEmpty(searchTerm))
@@ -578,19 +601,82 @@ namespace FileContentToolkit
                 return;
             }
 
-            lstFiles.ClearSelected();
-            for (int i = 0; i < fileService.SelectedFiles.Count; i++)
+            Regex regex;
+            try
             {
+                regex = BuildSearchRegex(searchTerm, chkRegex.Checked, chkCase.Checked, chkWord.Checked);
+            }
+            catch (ArgumentException ex)
+            {
+                MessageBox.Show("Invalid regular expression: " + ex.Message, "Search",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var files = fileService.SelectedFiles.ToList();
+            var encoding = selectedEncoding;
+            var service = fileService;
+
+            btnSearchFiles.Enabled = false;
+            progressBar.Visible = true;
+            progressBar.Value = 0;
+
+            try
+            {
+                var result = await Task.Run(() =>
+                {
+                    var hits = new List<int>();
+                    int totalMatches = 0;
+                    for (int i = 0; i < files.Count; i++)
+                    {
+                        try
+                        {
+                            string content = service.ReadFileText(files[i], encoding);
+                            int count = regex.Matches(content).Count;
+                            if (count > 0)
+                            {
+                                hits.Add(i);
+                                totalMatches += count;
+                            }
+                        }
+                        catch { /* skip unreadable files */ }
+                    }
+                    return (Hits: hits, TotalMatches: totalMatches);
+                });
+
+                lstFiles.BeginUpdate();
                 try
                 {
-                    string content = File.ReadAllText(fileService.SelectedFiles[i], selectedEncoding);
-                    if (content.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                    lstFiles.ClearSelected();
+                    foreach (var idx in result.Hits)
                     {
-                        lstFiles.SetSelected(i, true);
+                        if (idx >= 0 && idx < lstFiles.Items.Count)
+                            lstFiles.SetSelected(idx, true);
                     }
                 }
-                catch { } // Skip errors
+                finally { lstFiles.EndUpdate(); }
+
+                lblSearchMatches.Text = result.Hits.Count == 0
+                    ? "No matches"
+                    : $"{result.TotalMatches:N0} match{(result.TotalMatches == 1 ? "" : "es")} in {result.Hits.Count:N0} file{(result.Hits.Count == 1 ? "" : "s")}";
+
+                _settings.AddRecentSearch(searchTerm);
+                _settings.Save();
             }
+            finally
+            {
+                progressBar.Visible = false;
+                btnSearchFiles.Enabled = true;
+            }
+        }
+
+        private static Regex BuildSearchRegex(string pattern, bool isRegex, bool matchCase, bool wholeWord)
+        {
+            var options = RegexOptions.Multiline;
+            if (!matchCase) options |= RegexOptions.IgnoreCase;
+            var rx = isRegex ? pattern : Regex.Escape(pattern);
+            if (wholeWord) rx = $@"\b(?:{rx})\b";
+            return new Regex(rx, options);
         }
 
         // New: Update Ignore Patterns
@@ -598,7 +684,7 @@ namespace FileContentToolkit
         {
             fileService.IgnorePatterns.Clear();
             fileService.IgnorePatterns.AddRange(txtIgnorePatterns.Text.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()));
-            RefreshFilesInBackground();
+            DebounceRefresh();
         }
 
         // New: Encoding Changed
@@ -615,31 +701,46 @@ namespace FileContentToolkit
             // Optionally re-process if needed, but here we leave it for next generate
         }
 
-        // New: Background Refresh
-        private void RefreshFilesInBackground()
+        // Background refresh: cancels any in-flight scan and starts a new one.
+        // Only the latest scan updates the UI on completion.
+        private async Task RefreshFilesInBackground()
         {
-            if (bgWorker.IsBusy) return;
+            _scanCts?.Cancel();
+            var cts = new CancellationTokenSource();
+            _scanCts = cts;
+            var ct = cts.Token;
+
             progressBar.Visible = true;
+            progressBar.Value = 0;
             btnRefreshExtensions.Enabled = false;
-            bgWorker.RunWorkerAsync();
-        }
 
-        private void BgWorker_DoWork(object sender, DoWorkEventArgs e)
-        {
-            var progress = new Progress<int>(percent => bgWorker.ReportProgress(percent));
-            fileService.RefreshFilesAsync(progress).Wait();
-        }
+            var progress = new Progress<int>(p =>
+            {
+                if (!ct.IsCancellationRequested && !progressBar.IsDisposed)
+                    progressBar.Value = Math.Min(100, Math.Max(0, p));
+            });
 
-        private void BgWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
-        {
-            progressBar.Value = e.ProgressPercentage;
-        }
+            try
+            {
+                await fileService.RefreshFilesAsync(progress, ct);
+            }
+            catch (OperationCanceledException) { /* superseded by a newer scan */ }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Scan failed: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
 
-        private void BgWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
-        {
-            progressBar.Visible = false;
-            btnRefreshExtensions.Enabled = true;
-            SyncUIWithService();
+            if (cts == _scanCts)
+            {
+                if (!ct.IsCancellationRequested)
+                    SyncUIWithService();
+
+                progressBar.Visible = false;
+                btnRefreshExtensions.Enabled = true;
+                _scanCts = null;
+                cts.Dispose();
+            }
         }
 
         #endregion
@@ -679,46 +780,73 @@ namespace FileContentToolkit
             }
         }
 
-        private void ProcessFiles()
+        private async Task ProcessFilesAsync()
         {
-            rtbOutput.Clear();
+            var files = fileService.SelectedFiles.ToList();
+            var encoding = selectedEncoding;
+
+            btnGenerate.Enabled = false;
+            progressBar.Visible = true;
+            progressBar.Value = 0;
 
             try
             {
-                for (int i = 0; i < fileService.SelectedFiles.Count; i++)
+                // Read all files and assemble the output on a worker thread; remember header offsets
+                // so we can apply styling in one pass on the UI thread.
+                var service = fileService;
+                var built = await Task.Run(() =>
                 {
-                    string displayPath = fileService.SelectedFiles[i];
+                    var sb = new StringBuilder();
+                    var offsets = new List<(int Start, int Length)>(files.Count);
 
-                    // Header styling
-                    rtbOutput.SelectionStart = rtbOutput.TextLength;
-                    rtbOutput.SelectionLength = 0;
-                    rtbOutput.SelectionColor = Color.FromArgb(0, 102, 204);
-                    rtbOutput.SelectionFont = new Font(rtbOutput.Font, FontStyle.Bold);
-                    rtbOutput.AppendText(displayPath + ":");
-                    rtbOutput.SelectionColor = Color.Black;
-                    rtbOutput.SelectionFont = new Font(rtbOutput.Font, FontStyle.Regular);
-                    rtbOutput.AppendText("\n");
+                    for (int i = 0; i < files.Count; i++)
+                    {
+                        var path = files[i];
+                        var header = path + ":";
+                        offsets.Add((sb.Length, header.Length));
+                        sb.Append(header);
+                        sb.Append('\n');
 
-                    try
-                    {
-                        string content = File.ReadAllText(fileService.SelectedFiles[i], selectedEncoding); // Use selected encoding
-                        rtbOutput.AppendText(content);
-                    }
-                    catch (Exception ex)
-                    {
-                        rtbOutput.AppendText($"[Error reading file: {ex.Message}]");
+                        try
+                        {
+                            sb.Append(service.ReadFileText(path, encoding));
+                        }
+                        catch (Exception ex)
+                        {
+                            sb.Append($"[Error reading file: {ex.Message}]");
+                        }
+
+                        if (i < files.Count - 1)
+                            sb.Append("\n\n\n\n");
                     }
 
-                    if (i < fileService.SelectedFiles.Count - 1)
+                    return (Text: sb.ToString(), Offsets: offsets);
+                });
+
+                // One big assignment, then style headers under suspended redraw so we only repaint once.
+                SuspendDrawing(rtbOutput);
+                try
+                {
+                    rtbOutput.Clear();
+                    rtbOutput.Text = built.Text;
+
+                    using var headerFont = new Font(rtbOutput.Font, FontStyle.Bold);
+                    var headerColor = Color.FromArgb(0, 102, 204);
+                    foreach (var (start, length) in built.Offsets)
                     {
-                        rtbOutput.AppendText("\n\n\n\n");
+                        rtbOutput.Select(start, length);
+                        rtbOutput.SelectionColor = headerColor;
+                        rtbOutput.SelectionFont = headerFont;
                     }
+
+                    rtbOutput.Select(0, 0);
+                }
+                finally
+                {
+                    ResumeDrawing(rtbOutput);
                 }
 
-                rtbOutput.SelectionStart = 0;
                 rtbOutput.ScrollToCaret();
-
-                // New: Update statistics
                 UpdateOutputStatistics();
             }
             catch (Exception ex)
@@ -726,6 +854,22 @@ namespace FileContentToolkit
                 MessageBox.Show($"An error occurred: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            finally
+            {
+                progressBar.Visible = false;
+                btnGenerate.Enabled = true;
+            }
+        }
+
+        private static void SuspendDrawing(Control c)
+        {
+            SendMessage(c.Handle, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
+        }
+
+        private static void ResumeDrawing(Control c)
+        {
+            SendMessage(c.Handle, WM_SETREDRAW, (IntPtr)1, IntPtr.Zero);
+            c.Invalidate();
         }
 
         // New: Update Output Statistics
@@ -740,19 +884,31 @@ namespace FileContentToolkit
 
         private void SyncUIWithService()
         {
-            lstExtensions.Items.Clear();
-            foreach (var ext in fileService.Extensions)
-                lstExtensions.Items.Add(ext);
-
-            lstFiles.Items.Clear();
-            foreach (var file in fileService.SelectedFiles)
+            lstExtensions.BeginUpdate();
+            try
             {
-                string relativePath = string.IsNullOrEmpty(fileService.FolderPath)
-                    ? file
-                    : GetRelativePath(fileService.FolderPath, file);
-
-                lstFiles.Items.Add(relativePath);
+                lstExtensions.Items.Clear();
+                if (fileService.Extensions.Count > 0)
+                    lstExtensions.Items.AddRange(fileService.Extensions.Cast<object>().ToArray());
             }
+            finally { lstExtensions.EndUpdate(); }
+
+            lstFiles.BeginUpdate();
+            try
+            {
+                lstFiles.Items.Clear();
+                var folder = fileService.FolderPath;
+                var hasFolder = !string.IsNullOrEmpty(folder);
+                var items = new object[fileService.SelectedFiles.Count];
+                for (int i = 0; i < fileService.SelectedFiles.Count; i++)
+                {
+                    var file = fileService.SelectedFiles[i];
+                    items[i] = hasFolder ? GetRelativePath(folder, file) : file;
+                }
+                if (items.Length > 0)
+                    lstFiles.Items.AddRange(items);
+            }
+            finally { lstFiles.EndUpdate(); }
 
             lblFileCount.Text = $"Files: {fileService.SelectedFiles.Count}";
             chkIncludeSubfolders.Checked = fileService.IncludeSubfolders;
@@ -794,17 +950,7 @@ namespace FileContentToolkit
 
         private static string GetRelativePath(string basePath, string fullPath)
         {
-            Uri baseUri = new Uri(AppendDirectorySeparatorChar(basePath));
-            Uri fullUri = new Uri(fullPath);
-            Uri relativeUri = baseUri.MakeRelativeUri(fullUri);
-            return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', Path.DirectorySeparatorChar));
-        }
-
-        private static string AppendDirectorySeparatorChar(string path)
-        {
-            if (!path.EndsWith(Path.DirectorySeparatorChar.ToString()))
-                return path + Path.DirectorySeparatorChar;
-            return path;
+            return Path.GetRelativePath(basePath, fullPath);
         }
 
         #endregion

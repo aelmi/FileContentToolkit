@@ -65,6 +65,29 @@ namespace FileContentToolkit
         private System.Windows.Forms.Label lblRecreateInfo;
         private System.Windows.Forms.Button btnRecreateFiles;
 
+        // --- new toolbar row inside pnlTop ---
+        private System.Windows.Forms.Button btnTree;
+        private System.Windows.Forms.Button btnRecentFolders;
+        private System.Windows.Forms.Button btnOptions;
+        private System.Windows.Forms.Button btnSavePreset;
+        private System.Windows.Forms.Button btnLoadPreset;
+        private System.Windows.Forms.CheckBox chkWatch;
+
+        // --- search row enhancements inside grpFiles ---
+        private System.Windows.Forms.Button btnSearchRecents;
+        private System.Windows.Forms.CheckBox chkCase;
+        private System.Windows.Forms.CheckBox chkWord;
+        private System.Windows.Forms.CheckBox chkRegex;
+        private System.Windows.Forms.Button btnFindReplace;
+        private System.Windows.Forms.Label lblSearchMatches;
+
+        // --- main menu strip ---
+        private System.Windows.Forms.MenuStrip menuMain;
+        private System.Windows.Forms.ToolStripMenuItem mnuHelp;
+        private System.Windows.Forms.ToolStripMenuItem mnuHelpShortcuts;
+        private System.Windows.Forms.ToolStripSeparator mnuHelpSep1;
+        private System.Windows.Forms.ToolStripMenuItem mnuHelpAbout;
+
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -85,10 +108,27 @@ namespace FileContentToolkit
             lblPath = new Label();
             txtFolderPath = new TextBox();
             btnBrowse = new Button();
+            btnTree = new Button();
+            btnRecentFolders = new Button();
+            btnOptions = new Button();
+            btnSavePreset = new Button();
+            btnLoadPreset = new Button();
+            chkWatch = new CheckBox();
             pnlLeft = new Panel();
             grpFiles = new GroupBox();
             txtSearchFiles = new TextBox();
             btnSearchFiles = new Button();
+            btnSearchRecents = new Button();
+            chkCase = new CheckBox();
+            chkWord = new CheckBox();
+            chkRegex = new CheckBox();
+            btnFindReplace = new Button();
+            lblSearchMatches = new Label();
+            menuMain = new MenuStrip();
+            mnuHelp = new ToolStripMenuItem();
+            mnuHelpShortcuts = new ToolStripMenuItem();
+            mnuHelpSep1 = new ToolStripSeparator();
+            mnuHelpAbout = new ToolStripMenuItem();
             lblSearchFiles = new Label();
             lstFiles = new ListBox();
             ctxFiles = new ContextMenuStrip(components);
@@ -136,6 +176,7 @@ namespace FileContentToolkit
             lblCompression = new Label();
             pnlSeparator = new Panel();
             toolTip1 = new ToolTip(components);
+            menuMain.SuspendLayout();
             pnlTop.SuspendLayout();
             pnlLeft.SuspendLayout();
             grpFiles.SuspendLayout();
@@ -160,11 +201,17 @@ namespace FileContentToolkit
             pnlTop.Controls.Add(lblPath);
             pnlTop.Controls.Add(txtFolderPath);
             pnlTop.Controls.Add(btnBrowse);
+            pnlTop.Controls.Add(btnTree);
+            pnlTop.Controls.Add(btnRecentFolders);
+            pnlTop.Controls.Add(btnOptions);
+            pnlTop.Controls.Add(btnSavePreset);
+            pnlTop.Controls.Add(btnLoadPreset);
+            pnlTop.Controls.Add(chkWatch);
             pnlTop.Dock = DockStyle.Top;
             pnlTop.Location = new Point(0, 0);
             pnlTop.Name = "pnlTop";
             pnlTop.Padding = new Padding(20, 20, 20, 10);
-            pnlTop.Size = new Size(1640, 115);
+            pnlTop.Size = new Size(1640, 165);
             pnlTop.TabIndex = 0;
             // 
             // cmbEncoding
@@ -231,16 +278,116 @@ namespace FileContentToolkit
             btnBrowse.UseVisualStyleBackColor = false;
             btnBrowse.Click += BtnBrowse_Click;
             // 
+            // btnTree
+            // 
+            btnTree.BackColor = Color.FromArgb(51, 122, 183);
+            btnTree.Cursor = Cursors.Hand;
+            btnTree.FlatAppearance.BorderSize = 0;
+            btnTree.FlatStyle = FlatStyle.Flat;
+            btnTree.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            btnTree.ForeColor = Color.White;
+            btnTree.Location = new Point(20, 110);
+            btnTree.Name = "btnTree";
+            btnTree.Size = new Size(90, 34);
+            btnTree.TabIndex = 5;
+            btnTree.Text = "Tree";
+            toolTip1.SetToolTip(btnTree, "Pick files and folders from a tree view");
+            btnTree.UseVisualStyleBackColor = false;
+            btnTree.Click += BtnTree_Click;
+            // 
+            // btnRecentFolders
+            // 
+            btnRecentFolders.BackColor = Color.FromArgb(51, 122, 183);
+            btnRecentFolders.Cursor = Cursors.Hand;
+            btnRecentFolders.FlatAppearance.BorderSize = 0;
+            btnRecentFolders.FlatStyle = FlatStyle.Flat;
+            btnRecentFolders.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            btnRecentFolders.ForeColor = Color.White;
+            btnRecentFolders.Location = new Point(116, 110);
+            btnRecentFolders.Name = "btnRecentFolders";
+            btnRecentFolders.Size = new Size(110, 34);
+            btnRecentFolders.TabIndex = 6;
+            btnRecentFolders.Text = "Recent ▾";
+            toolTip1.SetToolTip(btnRecentFolders, "Recently used folders");
+            btnRecentFolders.UseVisualStyleBackColor = false;
+            btnRecentFolders.Click += BtnRecentFolders_Click;
+            // 
+            // btnOptions
+            // 
+            btnOptions.BackColor = Color.FromArgb(108, 117, 125);
+            btnOptions.Cursor = Cursors.Hand;
+            btnOptions.FlatAppearance.BorderSize = 0;
+            btnOptions.FlatStyle = FlatStyle.Flat;
+            btnOptions.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            btnOptions.ForeColor = Color.White;
+            btnOptions.Location = new Point(232, 110);
+            btnOptions.Name = "btnOptions";
+            btnOptions.Size = new Size(110, 34);
+            btnOptions.TabIndex = 7;
+            btnOptions.Text = "Options";
+            toolTip1.SetToolTip(btnOptions, "Configure filters, encoding, watcher");
+            btnOptions.UseVisualStyleBackColor = false;
+            btnOptions.Click += BtnOptions_Click;
+            // 
+            // btnSavePreset
+            // 
+            btnSavePreset.BackColor = Color.FromArgb(40, 167, 69);
+            btnSavePreset.Cursor = Cursors.Hand;
+            btnSavePreset.FlatAppearance.BorderSize = 0;
+            btnSavePreset.FlatStyle = FlatStyle.Flat;
+            btnSavePreset.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            btnSavePreset.ForeColor = Color.White;
+            btnSavePreset.Location = new Point(348, 110);
+            btnSavePreset.Name = "btnSavePreset";
+            btnSavePreset.Size = new Size(150, 34);
+            btnSavePreset.TabIndex = 8;
+            btnSavePreset.Text = "Save preset";
+            toolTip1.SetToolTip(btnSavePreset, "Save current folder + extensions as a preset");
+            btnSavePreset.UseVisualStyleBackColor = false;
+            btnSavePreset.Click += BtnSavePreset_Click;
+            // 
+            // btnLoadPreset
+            // 
+            btnLoadPreset.BackColor = Color.FromArgb(40, 167, 69);
+            btnLoadPreset.Cursor = Cursors.Hand;
+            btnLoadPreset.FlatAppearance.BorderSize = 0;
+            btnLoadPreset.FlatStyle = FlatStyle.Flat;
+            btnLoadPreset.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            btnLoadPreset.ForeColor = Color.White;
+            btnLoadPreset.Location = new Point(504, 110);
+            btnLoadPreset.Name = "btnLoadPreset";
+            btnLoadPreset.Size = new Size(130, 34);
+            btnLoadPreset.TabIndex = 9;
+            btnLoadPreset.Text = "Presets ▾";
+            toolTip1.SetToolTip(btnLoadPreset, "Load or manage saved presets");
+            btnLoadPreset.UseVisualStyleBackColor = false;
+            btnLoadPreset.Click += BtnLoadPreset_Click;
+            // 
+            // chkWatch
+            // 
+            chkWatch.AutoSize = true;
+            chkWatch.BackColor = Color.FromArgb(0, 102, 204);
+            chkWatch.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            chkWatch.ForeColor = Color.White;
+            chkWatch.Location = new Point(648, 116);
+            chkWatch.Name = "chkWatch";
+            chkWatch.Size = new Size(152, 29);
+            chkWatch.TabIndex = 10;
+            chkWatch.Text = "Watch folder";
+            toolTip1.SetToolTip(chkWatch, "Auto-refresh when files change on disk");
+            chkWatch.UseVisualStyleBackColor = false;
+            chkWatch.CheckedChanged += ChkWatch_CheckedChanged;
+            // 
             // pnlLeft
             // 
             pnlLeft.BackColor = Color.FromArgb(245, 247, 250);
             pnlLeft.Controls.Add(grpFiles);
             pnlLeft.Controls.Add(grpExtensions);
             pnlLeft.Dock = DockStyle.Left;
-            pnlLeft.Location = new Point(0, 115);
+            pnlLeft.Location = new Point(0, 165);
             pnlLeft.Name = "pnlLeft";
             pnlLeft.Padding = new Padding(20);
-            pnlLeft.Size = new Size(497, 995);
+            pnlLeft.Size = new Size(497, 945);
             pnlLeft.TabIndex = 1;
             // 
             // grpFiles
@@ -248,6 +395,12 @@ namespace FileContentToolkit
             grpFiles.BackColor = Color.White;
             grpFiles.Controls.Add(txtSearchFiles);
             grpFiles.Controls.Add(btnSearchFiles);
+            grpFiles.Controls.Add(btnSearchRecents);
+            grpFiles.Controls.Add(chkCase);
+            grpFiles.Controls.Add(chkWord);
+            grpFiles.Controls.Add(chkRegex);
+            grpFiles.Controls.Add(btnFindReplace);
+            grpFiles.Controls.Add(lblSearchMatches);
             grpFiles.Controls.Add(lblSearchFiles);
             grpFiles.Controls.Add(lstFiles);
             grpFiles.Controls.Add(pnlFileButtons);
@@ -257,7 +410,7 @@ namespace FileContentToolkit
             grpFiles.Location = new Point(20, 480);
             grpFiles.Name = "grpFiles";
             grpFiles.Padding = new Padding(10);
-            grpFiles.Size = new Size(457, 495);
+            grpFiles.Size = new Size(457, 445);
             grpFiles.TabIndex = 1;
             grpFiles.TabStop = false;
             grpFiles.Text = "Selected Files";
@@ -274,7 +427,7 @@ namespace FileContentToolkit
             // 
             btnSearchFiles.BackColor = Color.FromArgb(108, 117, 125);
             btnSearchFiles.FlatStyle = FlatStyle.Flat;
-            btnSearchFiles.Font = new Font("Segoe UI", 9F);
+            btnSearchFiles.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             btnSearchFiles.ForeColor = Color.White;
             btnSearchFiles.Location = new Point(320, 55);
             btnSearchFiles.Name = "btnSearchFiles";
@@ -283,6 +436,89 @@ namespace FileContentToolkit
             btnSearchFiles.Text = "Search";
             btnSearchFiles.UseVisualStyleBackColor = false;
             btnSearchFiles.Click += BtnSearchFiles_Click;
+            // 
+            // btnSearchRecents
+            // 
+            btnSearchRecents.BackColor = Color.FromArgb(108, 117, 125);
+            btnSearchRecents.Cursor = Cursors.Hand;
+            btnSearchRecents.FlatAppearance.BorderSize = 0;
+            btnSearchRecents.FlatStyle = FlatStyle.Flat;
+            btnSearchRecents.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnSearchRecents.ForeColor = Color.White;
+            btnSearchRecents.Location = new Point(424, 55);
+            btnSearchRecents.Name = "btnSearchRecents";
+            btnSearchRecents.Size = new Size(30, 34);
+            btnSearchRecents.TabIndex = 7;
+            btnSearchRecents.Text = "▾";
+            toolTip1.SetToolTip(btnSearchRecents, "Recent searches");
+            btnSearchRecents.UseVisualStyleBackColor = false;
+            btnSearchRecents.Click += BtnSearchRecents_Click;
+            // 
+            // chkCase
+            // 
+            chkCase.AutoSize = true;
+            chkCase.Font = new Font("Segoe UI", 9.5F);
+            chkCase.ForeColor = Color.FromArgb(33, 37, 41);
+            chkCase.Location = new Point(10, 102);
+            chkCase.Name = "chkCase";
+            chkCase.Size = new Size(60, 29);
+            chkCase.TabIndex = 8;
+            chkCase.Text = "Aa";
+            toolTip1.SetToolTip(chkCase, "Match case");
+            chkCase.UseVisualStyleBackColor = true;
+            // 
+            // chkWord
+            // 
+            chkWord.AutoSize = true;
+            chkWord.Font = new Font("Segoe UI", 9.5F);
+            chkWord.ForeColor = Color.FromArgb(33, 37, 41);
+            chkWord.Location = new Point(75, 102);
+            chkWord.Name = "chkWord";
+            chkWord.Size = new Size(84, 29);
+            chkWord.TabIndex = 9;
+            chkWord.Text = "Word";
+            toolTip1.SetToolTip(chkWord, "Whole word");
+            chkWord.UseVisualStyleBackColor = true;
+            // 
+            // chkRegex
+            // 
+            chkRegex.AutoSize = true;
+            chkRegex.Font = new Font("Segoe UI", 9.5F);
+            chkRegex.ForeColor = Color.FromArgb(33, 37, 41);
+            chkRegex.Location = new Point(169, 102);
+            chkRegex.Name = "chkRegex";
+            chkRegex.Size = new Size(50, 29);
+            chkRegex.TabIndex = 10;
+            chkRegex.Text = ".*";
+            toolTip1.SetToolTip(chkRegex, "Regular expression");
+            chkRegex.UseVisualStyleBackColor = true;
+            // 
+            // btnFindReplace
+            // 
+            btnFindReplace.BackColor = Color.FromArgb(13, 110, 253);
+            btnFindReplace.Cursor = Cursors.Hand;
+            btnFindReplace.FlatAppearance.BorderSize = 0;
+            btnFindReplace.FlatStyle = FlatStyle.Flat;
+            btnFindReplace.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnFindReplace.ForeColor = Color.White;
+            btnFindReplace.Location = new Point(294, 102);
+            btnFindReplace.Name = "btnFindReplace";
+            btnFindReplace.Size = new Size(150, 34);
+            btnFindReplace.TabIndex = 11;
+            btnFindReplace.Text = "Find / Replace";
+            toolTip1.SetToolTip(btnFindReplace, "Find & Replace in the output pane (Ctrl+F)");
+            btnFindReplace.UseVisualStyleBackColor = false;
+            btnFindReplace.Click += BtnFindReplace_Click;
+            // 
+            // lblSearchMatches
+            // 
+            lblSearchMatches.AutoSize = true;
+            lblSearchMatches.Font = new Font("Segoe UI", 9F);
+            lblSearchMatches.ForeColor = Color.FromArgb(108, 117, 125);
+            lblSearchMatches.Location = new Point(10, 142);
+            lblSearchMatches.Name = "lblSearchMatches";
+            lblSearchMatches.Size = new Size(0, 25);
+            lblSearchMatches.TabIndex = 12;
             // 
             // lblSearchFiles
             // 
@@ -302,13 +538,13 @@ namespace FileContentToolkit
             lstFiles.Font = new Font("Segoe UI", 9F);
             lstFiles.FormattingEnabled = true;
             lstFiles.ItemHeight = 25;
-            lstFiles.Location = new Point(10, 100);
+            lstFiles.Location = new Point(10, 170);
             lstFiles.Name = "lstFiles";
             lstFiles.SelectionMode = SelectionMode.MultiExtended;
-            lstFiles.Size = new Size(437, 304);
-            lstFiles.TabIndex = 0;            
-            lstFiles.DragDrop += new System.Windows.Forms.DragEventHandler(this.LstFiles_DragDrop);
-            lstFiles.DragEnter += new System.Windows.Forms.DragEventHandler(this.LstFiles_DragEnter);
+            lstFiles.Size = new Size(437, 179);
+            lstFiles.TabIndex = 0;
+            lstFiles.DragDrop += LstFiles_DragDrop;
+            lstFiles.DragEnter += LstFiles_DragEnter;
             lstFiles.KeyDown += LstFiles_KeyDown;
             // 
             // ctxFiles
@@ -340,7 +576,7 @@ namespace FileContentToolkit
             pnlFileButtons.Controls.Add(btnMoveUp);
             pnlFileButtons.Controls.Add(btnMoveDown);
             pnlFileButtons.Dock = DockStyle.Bottom;
-            pnlFileButtons.Location = new Point(10, 437);
+            pnlFileButtons.Location = new Point(10, 387);
             pnlFileButtons.Name = "pnlFileButtons";
             pnlFileButtons.Size = new Size(437, 48);
             pnlFileButtons.TabIndex = 1;
@@ -359,7 +595,7 @@ namespace FileContentToolkit
             btnAddMultipleFiles.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnAddMultipleFiles.BackColor = Color.FromArgb(40, 167, 69);
             btnAddMultipleFiles.FlatStyle = FlatStyle.Flat;
-            btnAddMultipleFiles.Font = new Font("Segoe UI", 9F);
+            btnAddMultipleFiles.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             btnAddMultipleFiles.ForeColor = Color.White;
             btnAddMultipleFiles.Location = new Point(130, 5);
             btnAddMultipleFiles.Name = "btnAddMultipleFiles";
@@ -374,6 +610,7 @@ namespace FileContentToolkit
             btnRemoveFile.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnRemoveFile.BackColor = Color.FromArgb(220, 53, 69);
             btnRemoveFile.FlatStyle = FlatStyle.Flat;
+            btnRemoveFile.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             btnRemoveFile.ForeColor = Color.White;
             btnRemoveFile.Location = new Point(240, 5);
             btnRemoveFile.Name = "btnRemoveFile";
@@ -386,8 +623,11 @@ namespace FileContentToolkit
             // btnMoveUp
             // 
             btnMoveUp.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnMoveUp.BackColor = Color.LightGray;
+            btnMoveUp.BackColor = Color.FromArgb(233, 236, 239);
+            btnMoveUp.FlatAppearance.BorderColor = Color.FromArgb(206, 212, 218);
             btnMoveUp.FlatStyle = FlatStyle.Flat;
+            btnMoveUp.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnMoveUp.ForeColor = Color.FromArgb(73, 80, 87);
             btnMoveUp.Location = new Point(340, 5);
             btnMoveUp.Name = "btnMoveUp";
             btnMoveUp.Size = new Size(40, 38);
@@ -399,8 +639,11 @@ namespace FileContentToolkit
             // btnMoveDown
             // 
             btnMoveDown.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnMoveDown.BackColor = Color.LightGray;
+            btnMoveDown.BackColor = Color.FromArgb(233, 236, 239);
+            btnMoveDown.FlatAppearance.BorderColor = Color.FromArgb(206, 212, 218);
             btnMoveDown.FlatStyle = FlatStyle.Flat;
+            btnMoveDown.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnMoveDown.ForeColor = Color.FromArgb(73, 80, 87);
             btnMoveDown.Location = new Point(385, 5);
             btnMoveDown.Name = "btnMoveDown";
             btnMoveDown.Size = new Size(40, 38);
@@ -475,6 +718,7 @@ namespace FileContentToolkit
             btnAdd.DropDownMenu = cmsAddDropdown;
             btnAdd.DropDownWidth = 22;
             btnAdd.FlatStyle = FlatStyle.Flat;
+            btnAdd.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             btnAdd.ForeColor = Color.White;
             btnAdd.Location = new Point(270, 60);
             btnAdd.Name = "btnAdd";
@@ -512,6 +756,7 @@ namespace FileContentToolkit
             // 
             btnRemove.BackColor = Color.FromArgb(220, 53, 69);
             btnRemove.FlatStyle = FlatStyle.Flat;
+            btnRemove.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             btnRemove.ForeColor = Color.White;
             btnRemove.Location = new Point(270, 105);
             btnRemove.Name = "btnRemove";
@@ -524,6 +769,8 @@ namespace FileContentToolkit
             // chkIncludeSubfolders
             // 
             chkIncludeSubfolders.AutoSize = true;
+            chkIncludeSubfolders.Checked = true;
+            chkIncludeSubfolders.CheckState = CheckState.Checked;
             chkIncludeSubfolders.Location = new Point(10, 345);
             chkIncludeSubfolders.Name = "chkIncludeSubfolders";
             chkIncludeSubfolders.Size = new Size(209, 32);
@@ -536,6 +783,7 @@ namespace FileContentToolkit
             // 
             btnRefreshExtensions.BackColor = Color.FromArgb(51, 122, 183);
             btnRefreshExtensions.FlatStyle = FlatStyle.Flat;
+            btnRefreshExtensions.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             btnRefreshExtensions.ForeColor = Color.White;
             btnRefreshExtensions.Location = new Point(270, 150);
             btnRefreshExtensions.Name = "btnRefreshExtensions";
@@ -576,7 +824,7 @@ namespace FileContentToolkit
             btnGenerate.Name = "btnGenerate";
             btnGenerate.Size = new Size(250, 60);
             btnGenerate.TabIndex = 0;
-            btnGenerate.Text = "GENERATE";
+            btnGenerate.Text = "▶  GENERATE";
             btnGenerate.UseVisualStyleBackColor = false;
             btnGenerate.Click += BtnGenerate_Click;
             // 
@@ -587,10 +835,10 @@ namespace FileContentToolkit
             pnlRight.Controls.Add(pnlRecreateInfo);
             pnlRight.Controls.Add(pnlOutput);
             pnlRight.Dock = DockStyle.Fill;
-            pnlRight.Location = new Point(497, 115);
+            pnlRight.Location = new Point(497, 165);
             pnlRight.Name = "pnlRight";
             pnlRight.Padding = new Padding(20);
-            pnlRight.Size = new Size(1143, 995);
+            pnlRight.Size = new Size(1143, 945);
             pnlRight.TabIndex = 2;
             // 
             // rtbOutput
@@ -601,7 +849,7 @@ namespace FileContentToolkit
             rtbOutput.Location = new Point(20, 240);
             rtbOutput.Name = "rtbOutput";
             rtbOutput.ReadOnly = true;
-            rtbOutput.Size = new Size(1103, 735);
+            rtbOutput.Size = new Size(1103, 685);
             rtbOutput.TabIndex = 1;
             rtbOutput.Text = "";
             rtbOutput.WordWrap = false;
@@ -841,9 +1089,48 @@ namespace FileContentToolkit
             pnlSeparator.Name = "pnlSeparator";
             pnlSeparator.Size = new Size(1103, 1);
             pnlSeparator.TabIndex = 1;
-            // 
+            //
+            // menuMain
+            //
+            menuMain.BackColor = Color.FromArgb(245, 247, 250);
+            menuMain.Font = new Font("Segoe UI", 9.5F);
+            menuMain.ImageScalingSize = new Size(20, 20);
+            menuMain.Items.AddRange(new ToolStripItem[] { mnuHelp });
+            menuMain.Location = new Point(0, 0);
+            menuMain.Name = "menuMain";
+            menuMain.Padding = new Padding(6, 2, 0, 2);
+            menuMain.Size = new Size(1640, 28);
+            menuMain.TabIndex = 11;
+            //
+            // mnuHelp
+            //
+            mnuHelp.DropDownItems.AddRange(new ToolStripItem[] { mnuHelpShortcuts, mnuHelpSep1, mnuHelpAbout });
+            mnuHelp.Name = "mnuHelp";
+            mnuHelp.Size = new Size(56, 24);
+            mnuHelp.Text = "&Help";
+            //
+            // mnuHelpShortcuts
+            //
+            mnuHelpShortcuts.Name = "mnuHelpShortcuts";
+            mnuHelpShortcuts.ShortcutKeys = Keys.F1;
+            mnuHelpShortcuts.Size = new Size(220, 26);
+            mnuHelpShortcuts.Text = "&Keyboard Shortcuts…";
+            mnuHelpShortcuts.Click += MnuHelpShortcuts_Click;
+            //
+            // mnuHelpSep1
+            //
+            mnuHelpSep1.Name = "mnuHelpSep1";
+            mnuHelpSep1.Size = new Size(217, 6);
+            //
+            // mnuHelpAbout
+            //
+            mnuHelpAbout.Name = "mnuHelpAbout";
+            mnuHelpAbout.Size = new Size(220, 26);
+            mnuHelpAbout.Text = "&About…";
+            mnuHelpAbout.Click += MnuHelpAbout_Click;
+            //
             // MainForm
-            // 
+            //
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.FromArgb(245, 247, 250);
@@ -852,10 +1139,14 @@ namespace FileContentToolkit
             Controls.Add(pnlLeft);
             Controls.Add(pnlBottom);
             Controls.Add(pnlTop);
+            Controls.Add(menuMain);
+            MainMenuStrip = menuMain;
             MinimumSize = new Size(1315, 1087);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "File Content Toolkit";
+            menuMain.ResumeLayout(false);
+            menuMain.PerformLayout();
             pnlTop.ResumeLayout(false);
             pnlTop.PerformLayout();
             pnlLeft.ResumeLayout(false);

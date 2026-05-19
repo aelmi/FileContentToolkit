@@ -29,13 +29,14 @@ namespace FileContentToolkit.UI
                 g.DrawLine(pen, arrowRect.Left, rect.Top + 4, arrowRect.Left, rect.Bottom - 4);
             }
 
-            // Dropdown caret
+            // Dropdown caret — use the button's own ForeColor so it stays readable
+            // regardless of the button's BackColor.
             TextRenderer.DrawText(
                 g,
                 "▼",
                 new Font(Font.FontFamily, Math.Max(8, Font.Size - 1), FontStyle.Bold),
                 arrowRect,
-                Enabled ? Color.White : Color.FromArgb(200, 200, 200),
+                Enabled ? ForeColor : Color.FromArgb(200, 200, 200),
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
             );
         }

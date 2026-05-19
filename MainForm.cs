@@ -62,6 +62,59 @@ namespace FileContentToolkit
 
             // Feature toolbar (recent folders, options, presets, watch, search toggles, find/replace)
             InitExtraFeatures();
+
+            // Bind each language-preset menu item to its extension list (data lives in LanguagePresets.All).
+            WireLanguagePresets();
+        }
+
+        private void WireLanguagePresets()
+        {
+            var items = new[] {
+                mnuLangCs, mnuLangCpp, mnuLangWeb, mnuLangTs, mnuLangNode, mnuLangPy,
+                mnuLangJava, mnuLangKotlin, mnuLangGo, mnuLangRust, mnuLangRuby,
+                mnuLangPhp, mnuLangSwift, mnuLangShell, mnuLangDocs, mnuLangConfig
+            };
+            for (int i = 0; i < items.Length && i < LanguagePresets.All.Length; i++)
+            {
+                items[i].Tag = LanguagePresets.All[i].Extensions;
+                items[i].ToolTipText = string.Join(" ", LanguagePresets.All[i].Extensions);
+            }
+        }
+
+        private void MnuLanguagePreset_Click(object? sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem mi && mi.Tag is string[] exts)
+                BulkAddExtensions(exts);
+        }
+
+        private void BulkAddExtensions(string[] exts)
+        {
+            if (exts == null || exts.Length == 0) return;
+
+            int added = 0, skipped = 0;
+            foreach (var raw in exts)
+            {
+                var ext = raw.Trim();
+                if (string.IsNullOrEmpty(ext)) continue;
+                if (!ext.StartsWith(".")) ext = "." + ext;
+
+                if (fileService.Extensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+                    skipped++;
+                else
+                {
+                    fileService.AddExtension(ext);
+                    added++;
+                }
+            }
+
+            SyncUIWithService();
+            if (added > 0) _ = RefreshFilesInBackground();
+
+            // Brief feedback in the status bar (sbScanStatus is the rightmost label
+            // that the scan flow also uses).
+            sbScanStatus.Text = skipped > 0
+                ? $"Added {added}, skipped {skipped} already present"
+                : $"Added {added} extension{(added == 1 ? "" : "s")}";
         }
 
         #region UI Polishing (Hover Effects)
@@ -493,8 +546,36 @@ namespace FileContentToolkit
 
         private void BtnCopyOutput_Click(object sender, EventArgs e)
         {
-            if (!string.IsNullOrEmpty(rtbOutput.Text))
-                Clipboard.SetText(rtbOutput.Text);
+            CopyToClipboard(rtbOutput.Text, "Output copied to clipboard");
+        }
+
+        // -------------------- Copy as ▾ format menu --------------------
+
+        private void MnuCopyPlain_Click(object? sender, EventArgs e)
+            => CopyToClipboard(rtbOutput.Text, "Copied as plain text");
+
+        private void MnuCopyMarkdown_Click(object? sender, EventArgs e)
+            => CopyToClipboard(OutputFormatter.ToMarkdown(rtbOutput.Text), "Copied as Markdown");
+
+        private void MnuCopyXml_Click(object? sender, EventArgs e)
+            => CopyToClipboard(OutputFormatter.ToXmlClaude(rtbOutput.Text), "Copied as XML");
+
+        private void MnuCopyJson_Click(object? sender, EventArgs e)
+            => CopyToClipboard(OutputFormatter.ToJsonArray(rtbOutput.Text), "Copied as JSON");
+
+        private void CopyToClipboard(string text, string statusMessage)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            try
+            {
+                Clipboard.SetText(text);
+                sbScanStatus.Text = $"{statusMessage} — ~{TokenEstimator.Estimate(text):N0} tokens";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Copy failed: " + ex.Message, "Copy",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private async void BtnGenerate_Click(object sender, EventArgs e)
@@ -513,6 +594,16 @@ namespace FileContentToolkit
             if (e.KeyCode == Keys.Delete)
             {
                 BtnRemoveFile_Click(sender, e);
+                e.Handled = true;
+            }
+        }
+
+        private void LstExtensions_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Delete && lstExtensions.SelectedIndex >= 0)
+            {
+                BtnRemove_Click(sender, e);
+                e.Handled = true;
             }
         }
 
@@ -879,7 +970,9 @@ namespace FileContentToolkit
             int charCount = text.Length;
             int lineCount = text.Split('\n').Length;
             int byteSize = Encoding.UTF8.GetByteCount(text);
-            lblOutputStats.Text = $"Chars: {charCount:N0} | Lines: {lineCount:N0} | Size: {byteSize:N0} bytes";
+            int tokens = TokenEstimator.Estimate(text);
+            lblOutputStats.Text =
+                $"Chars: {charCount:N0} | Lines: {lineCount:N0} | Size: {byteSize:N0} bytes | ~{tokens:N0} tokens";
         }
 
         private void SyncUIWithService()

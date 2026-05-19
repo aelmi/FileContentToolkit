@@ -178,48 +178,155 @@ namespace FileContentToolkit
             }
         }
 
+        // -------------------- Designer-declared slot config + slot click handlers --------------------
+        // Called from InitializeComponent (Designer.cs). They wire common state onto the
+        // pre-declared menu item slots so the Designer file stays free of repetitive boilerplate.
+
+        private void ConfigureRfSlot(ToolStripMenuItem item, string name)
+        {
+            item.Name = name;
+            item.Visible = false;
+            item.Click += MnuRecentFolderSlot_Click;
+        }
+
+        private void ConfigureRsSlot(ToolStripMenuItem item, string name)
+        {
+            item.Name = name;
+            item.Visible = false;
+            item.Click += MnuRecentSearchSlot_Click;
+        }
+
+        private void ConfigurePsSlot(ToolStripMenuItem item, string name)
+        {
+            item.Name = name;
+            item.Visible = false;
+            item.Click += MnuPresetSlot_Click;
+        }
+
+        // -------------------- Recent / Preset menus (populate the persisted slots) --------------------
+
         private void BtnRecentFolders_Click(object? sender, EventArgs e)
         {
-            ShowRecentMenu(btnRecentFolders, _settings.RecentFolders, path =>
-            {
-                txtFolderPath.Text = path; // fires the debounced refresh
-            }, () =>
-            {
-                _settings.RecentFolders.Clear();
-                _settings.Save();
-            });
+            PopulateRecentSlots(_settings.RecentFolders, RecentFolderSlots(), mnuRfEmpty, mnuRfSep, mnuRfClear);
+            cmsRecentFolders.Show(btnRecentFolders, new Point(0, btnRecentFolders.Height));
         }
 
         private void BtnSearchRecents_Click(object? sender, EventArgs e)
         {
-            ShowRecentMenu(btnSearchRecents, _settings.RecentSearches, term =>
-            {
-                txtSearchFiles.Text = term;
-            }, () =>
-            {
-                _settings.RecentSearches.Clear();
-                _settings.Save();
-            });
+            PopulateRecentSlots(_settings.RecentSearches, RecentSearchSlots(), mnuRsEmpty, mnuRsSep, mnuRsClear);
+            cmsRecentSearches.Show(btnSearchRecents, new Point(0, btnSearchRecents.Height));
         }
 
-        private void ShowRecentMenu(Control anchor, IReadOnlyList<string> items, Action<string> onPick, Action onClear)
+        private void BtnLoadPreset_Click(object? sender, EventArgs e)
         {
-            var menu = new ContextMenuStrip();
-            if (items.Count == 0)
+            PopulatePresetSlots();
+            cmsPresets.Show(btnLoadPreset, new Point(0, btnLoadPreset.Height));
+        }
+
+        private ToolStripMenuItem[] RecentFolderSlots() => new[] {
+            mnuRf01, mnuRf02, mnuRf03, mnuRf04, mnuRf05, mnuRf06, mnuRf07, mnuRf08,
+            mnuRf09, mnuRf10, mnuRf11, mnuRf12, mnuRf13, mnuRf14, mnuRf15
+        };
+
+        private ToolStripMenuItem[] RecentSearchSlots() => new[] {
+            mnuRs01, mnuRs02, mnuRs03, mnuRs04, mnuRs05, mnuRs06, mnuRs07, mnuRs08,
+            mnuRs09, mnuRs10, mnuRs11, mnuRs12, mnuRs13, mnuRs14, mnuRs15
+        };
+
+        private ToolStripMenuItem[] PresetSlots() => new[] {
+            mnuPs01, mnuPs02, mnuPs03, mnuPs04, mnuPs05, mnuPs06, mnuPs07, mnuPs08,
+            mnuPs09, mnuPs10, mnuPs11, mnuPs12, mnuPs13, mnuPs14, mnuPs15,
+            mnuPs16, mnuPs17, mnuPs18, mnuPs19, mnuPs20, mnuPs21, mnuPs22,
+            mnuPs23, mnuPs24, mnuPs25
+        };
+
+        private static void PopulateRecentSlots(IReadOnlyList<string> data,
+                                                ToolStripMenuItem[] slots,
+                                                ToolStripMenuItem emptyItem,
+                                                ToolStripSeparator separator,
+                                                ToolStripMenuItem clearItem)
+        {
+            int n = Math.Min(data.Count, slots.Length);
+            for (int i = 0; i < slots.Length; i++)
             {
-                menu.Items.Add(new ToolStripMenuItem("(empty)") { Enabled = false });
-            }
-            else
-            {
-                foreach (var item in items)
+                if (i < n)
                 {
-                    var captured = item;
-                    menu.Items.Add(new ToolStripMenuItem(captured, null, (s, e) => onPick(captured)));
+                    slots[i].Text = data[i];
+                    slots[i].Tag = data[i];
+                    slots[i].Visible = true;
                 }
-                menu.Items.Add(new ToolStripSeparator());
-                menu.Items.Add(new ToolStripMenuItem("Clear history", null, (s, e) => onClear()));
+                else
+                {
+                    slots[i].Visible = false;
+                    slots[i].Tag = null;
+                }
             }
-            menu.Show(anchor, new Point(0, anchor.Height));
+            emptyItem.Visible = n == 0;
+            separator.Visible = n > 0;
+            clearItem.Visible = n > 0;
+        }
+
+        private void PopulatePresetSlots()
+        {
+            var ordered = _settings.Presets
+                .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var slots = PresetSlots();
+            int n = Math.Min(ordered.Count, slots.Length);
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (i < n)
+                {
+                    slots[i].Text = ordered[i].Name;
+                    slots[i].Tag = ordered[i];
+                    slots[i].Visible = true;
+                }
+                else
+                {
+                    slots[i].Visible = false;
+                    slots[i].Tag = null;
+                }
+            }
+            mnuPsEmpty.Visible = n == 0;
+            mnuPsSep.Visible = true; // separator before Manage… is always shown
+        }
+
+        private void MnuRecentFolderSlot_Click(object? sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem mi && mi.Tag is string path)
+                txtFolderPath.Text = path; // fires the debounced refresh
+        }
+
+        private void MnuRecentSearchSlot_Click(object? sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem mi && mi.Tag is string term)
+                txtSearchFiles.Text = term;
+        }
+
+        private void MnuPresetSlot_Click(object? sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem mi && mi.Tag is Preset preset)
+                ApplyPreset(preset);
+        }
+
+        private void MnuRfClear_Click(object? sender, EventArgs e)
+        {
+            _settings.RecentFolders.Clear();
+            _settings.Save();
+        }
+
+        private void MnuRsClear_Click(object? sender, EventArgs e)
+        {
+            _settings.RecentSearches.Clear();
+            _settings.Save();
+        }
+
+        private void MnuPsManage_Click(object? sender, EventArgs e)
+        {
+            using var dlg = new PresetManagerForm(_settings);
+            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.LoadRequested && dlg.SelectedPreset != null)
+                ApplyPreset(dlg.SelectedPreset);
+            _settings.Save();
         }
 
         private void BtnOptions_Click(object? sender, EventArgs e)
@@ -266,33 +373,6 @@ namespace FileContentToolkit
             MessageBox.Show(this, "Preset saved.", "Save preset", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        private void BtnLoadPreset_Click(object? sender, EventArgs e)
-        {
-            var menu = new ContextMenuStrip();
-            if (_settings.Presets.Count == 0)
-            {
-                menu.Items.Add(new ToolStripMenuItem("(no presets)") { Enabled = false });
-            }
-            else
-            {
-                foreach (var p in _settings.Presets.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase))
-                {
-                    var captured = p;
-                    menu.Items.Add(new ToolStripMenuItem(captured.Name, null, (s, e2) => ApplyPreset(captured)));
-                }
-            }
-            menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(new ToolStripMenuItem("Manage presets…", null, (s, e2) =>
-            {
-                using var dlg = new PresetManagerForm(_settings);
-                if (dlg.ShowDialog(this) == DialogResult.OK && dlg.LoadRequested && dlg.SelectedPreset != null)
-                {
-                    ApplyPreset(dlg.SelectedPreset);
-                }
-                _settings.Save();
-            }));
-            menu.Show(btnLoadPreset, new Point(0, btnLoadPreset.Height));
-        }
 
         private void ApplyPreset(Preset p)
         {

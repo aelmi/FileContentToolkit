@@ -36,11 +36,107 @@ namespace FileContentToolkit
         private System.Windows.Forms.Panel pnlRight;
         private System.Windows.Forms.Label lblOutput;
         private System.Windows.Forms.RichTextBox rtbOutput;
-        private System.Windows.Forms.Button btnCopyOutput;
+        private FileContentToolkit.UI.SplitButton btnCopyOutput;
         private System.Windows.Forms.Button btnEditOutput;
+        private System.Windows.Forms.ContextMenuStrip cmsCopyAs;
+        private System.Windows.Forms.ToolStripMenuItem mnuCopyPlain;
+        private System.Windows.Forms.ToolStripMenuItem mnuCopyMarkdown;
+        private System.Windows.Forms.ToolStripMenuItem mnuCopyXml;
+        private System.Windows.Forms.ToolStripMenuItem mnuCopyJson;
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.ContextMenuStrip cmsAddDropdown;
         private System.Windows.Forms.ToolStripMenuItem miShowExtensionSummary;
+        private System.Windows.Forms.ToolStripMenuItem mnuAddLangPresets;
+        private System.Windows.Forms.ToolStripSeparator mnuAddSep1;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangCs;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangCpp;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangWeb;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangTs;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangNode;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangPy;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangJava;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangKotlin;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangGo;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangRust;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangRuby;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangPhp;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangSwift;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangShell;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangDocs;
+        private System.Windows.Forms.ToolStripMenuItem mnuLangConfig;
+
+        // Designer-owned popups for the Recent / Searches / Presets buttons.
+        // Item slots are persisted here; at runtime only Text / Tag / Visible are updated.
+        private System.Windows.Forms.ContextMenuStrip cmsRecentFolders;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf01;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf02;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf03;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf04;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf05;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf06;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf07;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf08;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf09;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf10;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf11;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf12;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf13;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf14;
+        private System.Windows.Forms.ToolStripMenuItem mnuRf15;
+        private System.Windows.Forms.ToolStripMenuItem mnuRfEmpty;
+        private System.Windows.Forms.ToolStripSeparator mnuRfSep;
+        private System.Windows.Forms.ToolStripMenuItem mnuRfClear;
+
+        private System.Windows.Forms.ContextMenuStrip cmsRecentSearches;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs01;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs02;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs03;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs04;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs05;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs06;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs07;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs08;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs09;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs10;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs11;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs12;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs13;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs14;
+        private System.Windows.Forms.ToolStripMenuItem mnuRs15;
+        private System.Windows.Forms.ToolStripMenuItem mnuRsEmpty;
+        private System.Windows.Forms.ToolStripSeparator mnuRsSep;
+        private System.Windows.Forms.ToolStripMenuItem mnuRsClear;
+
+        private System.Windows.Forms.ContextMenuStrip cmsPresets;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs01;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs02;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs03;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs04;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs05;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs06;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs07;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs08;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs09;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs10;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs11;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs12;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs13;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs14;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs15;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs16;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs17;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs18;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs19;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs20;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs21;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs22;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs23;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs24;
+        private System.Windows.Forms.ToolStripMenuItem mnuPs25;
+        private System.Windows.Forms.ToolStripMenuItem mnuPsEmpty;
+        private System.Windows.Forms.ToolStripSeparator mnuPsSep;
+        private System.Windows.Forms.ToolStripMenuItem mnuPsManage;
+
         private System.Windows.Forms.ContextMenuStrip ctxFiles;
         private System.Windows.Forms.ToolStripMenuItem miSortByName;
         private System.Windows.Forms.ToolStripMenuItem miSortByExtension;
@@ -143,13 +239,13 @@ namespace FileContentToolkit
             lblSearchFiles = new Label();
             lstFiles = new ListBox();
             ctxFiles = new ContextMenuStrip(components);
-            miSortByName = new ToolStripMenuItem();
-            miSortByExtension = new ToolStripMenuItem();
-            miFilesSep1 = new ToolStripSeparator();
             miOpenFile = new ToolStripMenuItem();
             miRevealInExplorer = new ToolStripMenuItem();
-            miCopyPath = new ToolStripMenuItem();
             miOpenContainingFolder = new ToolStripMenuItem();
+            miCopyPath = new ToolStripMenuItem();
+            miFilesSep1 = new ToolStripSeparator();
+            miSortByName = new ToolStripMenuItem();
+            miSortByExtension = new ToolStripMenuItem();
             pnlFileButtons = new Panel();
             lblFileCount = new Label();
             btnAddMultipleFiles = new Button();
@@ -163,19 +259,104 @@ namespace FileContentToolkit
             cmbExtension = new ComboBox();
             btnAdd = new FileContentToolkit.UI.SplitButton();
             cmsAddDropdown = new ContextMenuStrip(components);
+            mnuAddLangPresets = new ToolStripMenuItem();
+            mnuLangCs = new ToolStripMenuItem();
+            mnuLangCpp = new ToolStripMenuItem();
+            mnuLangWeb = new ToolStripMenuItem();
+            mnuLangTs = new ToolStripMenuItem();
+            mnuLangNode = new ToolStripMenuItem();
+            mnuLangPy = new ToolStripMenuItem();
+            mnuLangJava = new ToolStripMenuItem();
+            mnuLangKotlin = new ToolStripMenuItem();
+            mnuLangGo = new ToolStripMenuItem();
+            mnuLangRust = new ToolStripMenuItem();
+            mnuLangRuby = new ToolStripMenuItem();
+            mnuLangPhp = new ToolStripMenuItem();
+            mnuLangSwift = new ToolStripMenuItem();
+            mnuLangShell = new ToolStripMenuItem();
+            mnuLangDocs = new ToolStripMenuItem();
+            mnuLangConfig = new ToolStripMenuItem();
+            mnuAddSep1 = new ToolStripSeparator();
             miShowExtensionSummary = new ToolStripMenuItem();
             lstExtensions = new ListBox();
             btnRemove = new Button();
             chkIncludeSubfolders = new CheckBox();
             btnRefreshExtensions = new Button();
+            cmsRecentFolders = new ContextMenuStrip(components);
+            mnuRfEmpty = new ToolStripMenuItem();
+            mnuRf01 = new ToolStripMenuItem();
+            mnuRf02 = new ToolStripMenuItem();
+            mnuRf03 = new ToolStripMenuItem();
+            mnuRf04 = new ToolStripMenuItem();
+            mnuRf05 = new ToolStripMenuItem();
+            mnuRf06 = new ToolStripMenuItem();
+            mnuRf07 = new ToolStripMenuItem();
+            mnuRf08 = new ToolStripMenuItem();
+            mnuRf09 = new ToolStripMenuItem();
+            mnuRf10 = new ToolStripMenuItem();
+            mnuRf11 = new ToolStripMenuItem();
+            mnuRf12 = new ToolStripMenuItem();
+            mnuRf13 = new ToolStripMenuItem();
+            mnuRf14 = new ToolStripMenuItem();
+            mnuRf15 = new ToolStripMenuItem();
+            mnuRfSep = new ToolStripSeparator();
+            mnuRfClear = new ToolStripMenuItem();
+            cmsRecentSearches = new ContextMenuStrip(components);
+            mnuRsEmpty = new ToolStripMenuItem();
+            mnuRs01 = new ToolStripMenuItem();
+            mnuRs02 = new ToolStripMenuItem();
+            mnuRs03 = new ToolStripMenuItem();
+            mnuRs04 = new ToolStripMenuItem();
+            mnuRs05 = new ToolStripMenuItem();
+            mnuRs06 = new ToolStripMenuItem();
+            mnuRs07 = new ToolStripMenuItem();
+            mnuRs08 = new ToolStripMenuItem();
+            mnuRs09 = new ToolStripMenuItem();
+            mnuRs10 = new ToolStripMenuItem();
+            mnuRs11 = new ToolStripMenuItem();
+            mnuRs12 = new ToolStripMenuItem();
+            mnuRs13 = new ToolStripMenuItem();
+            mnuRs14 = new ToolStripMenuItem();
+            mnuRs15 = new ToolStripMenuItem();
+            mnuRsSep = new ToolStripSeparator();
+            mnuRsClear = new ToolStripMenuItem();
+            cmsPresets = new ContextMenuStrip(components);
+            mnuPsEmpty = new ToolStripMenuItem();
+            mnuPs01 = new ToolStripMenuItem();
+            mnuPs02 = new ToolStripMenuItem();
+            mnuPs03 = new ToolStripMenuItem();
+            mnuPs04 = new ToolStripMenuItem();
+            mnuPs05 = new ToolStripMenuItem();
+            mnuPs06 = new ToolStripMenuItem();
+            mnuPs07 = new ToolStripMenuItem();
+            mnuPs08 = new ToolStripMenuItem();
+            mnuPs09 = new ToolStripMenuItem();
+            mnuPs10 = new ToolStripMenuItem();
+            mnuPs11 = new ToolStripMenuItem();
+            mnuPs12 = new ToolStripMenuItem();
+            mnuPs13 = new ToolStripMenuItem();
+            mnuPs14 = new ToolStripMenuItem();
+            mnuPs15 = new ToolStripMenuItem();
+            mnuPs16 = new ToolStripMenuItem();
+            mnuPs17 = new ToolStripMenuItem();
+            mnuPs18 = new ToolStripMenuItem();
+            mnuPs19 = new ToolStripMenuItem();
+            mnuPs20 = new ToolStripMenuItem();
+            mnuPs21 = new ToolStripMenuItem();
+            mnuPs22 = new ToolStripMenuItem();
+            mnuPs23 = new ToolStripMenuItem();
+            mnuPs24 = new ToolStripMenuItem();
+            mnuPs25 = new ToolStripMenuItem();
+            mnuPsSep = new ToolStripSeparator();
+            mnuPsManage = new ToolStripMenuItem();
             menuMain = new MenuStrip();
             mnuView = new ToolStripMenuItem();
             mnuViewDarkMode = new ToolStripMenuItem();
             mnuHelp = new ToolStripMenuItem();
             mnuHelpShortcuts = new ToolStripMenuItem();
+            mnuHelpCheckUpdates = new ToolStripMenuItem();
             mnuHelpSep1 = new ToolStripSeparator();
             mnuHelpAbout = new ToolStripMenuItem();
-            mnuHelpCheckUpdates = new ToolStripMenuItem();
             statusBar = new StatusStrip();
             sbFileCount = new ToolStripStatusLabel();
             sbTotalSize = new ToolStripStatusLabel();
@@ -196,7 +377,12 @@ namespace FileContentToolkit
             pnlOutputHeader = new Panel();
             btnExportOutput = new Button();
             btnEditOutput = new Button();
-            btnCopyOutput = new Button();
+            btnCopyOutput = new FileContentToolkit.UI.SplitButton();
+            cmsCopyAs = new ContextMenuStrip(components);
+            mnuCopyPlain = new ToolStripMenuItem();
+            mnuCopyMarkdown = new ToolStripMenuItem();
+            mnuCopyXml = new ToolStripMenuItem();
+            mnuCopyJson = new ToolStripMenuItem();
             lblOutput = new Label();
             pnlCompressionTools = new Panel();
             btnDecompressEnc = new Button();
@@ -213,6 +399,9 @@ namespace FileContentToolkit
             pnlFileButtons.SuspendLayout();
             grpExtensions.SuspendLayout();
             cmsAddDropdown.SuspendLayout();
+            cmsRecentFolders.SuspendLayout();
+            cmsRecentSearches.SuspendLayout();
+            cmsPresets.SuspendLayout();
             menuMain.SuspendLayout();
             statusBar.SuspendLayout();
             pnlBottom.SuspendLayout();
@@ -221,6 +410,7 @@ namespace FileContentToolkit
             tblRecreateInfo.SuspendLayout();
             pnlOutput.SuspendLayout();
             pnlOutputHeader.SuspendLayout();
+            cmsCopyAs.SuspendLayout();
             pnlCompressionTools.SuspendLayout();
             SuspendLayout();
             // 
@@ -418,7 +608,7 @@ namespace FileContentToolkit
             pnlLeft.Location = new Point(0, 198);
             pnlLeft.Name = "pnlLeft";
             pnlLeft.Padding = new Padding(20);
-            pnlLeft.Size = new Size(497, 912);
+            pnlLeft.Size = new Size(497, 940);
             pnlLeft.TabIndex = 1;
             // 
             // grpFiles
@@ -441,7 +631,7 @@ namespace FileContentToolkit
             grpFiles.Location = new Point(20, 410);
             grpFiles.Name = "grpFiles";
             grpFiles.Padding = new Padding(10);
-            grpFiles.Size = new Size(457, 482);
+            grpFiles.Size = new Size(457, 510);
             grpFiles.TabIndex = 1;
             grpFiles.TabStop = false;
             grpFiles.Text = "Selected Files";
@@ -569,70 +759,71 @@ namespace FileContentToolkit
             lstFiles.Font = new Font("Segoe UI", 9F);
             lstFiles.FormattingEnabled = true;
             lstFiles.ItemHeight = 25;
-            lstFiles.Location = new Point(10, 170);
+            lstFiles.Location = new Point(10, 142);
             lstFiles.Name = "lstFiles";
             lstFiles.SelectionMode = SelectionMode.MultiExtended;
-            lstFiles.Size = new Size(437, 229);
+            lstFiles.Size = new Size(437, 254);
             lstFiles.TabIndex = 0;
             lstFiles.DragDrop += LstFiles_DragDrop;
             lstFiles.DragEnter += LstFiles_DragEnter;
             lstFiles.DragOver += LstFiles_DragOver;
+            lstFiles.KeyDown += LstFiles_KeyDown;
             lstFiles.MouseDown += LstFiles_MouseDown;
             lstFiles.MouseMove += LstFiles_MouseMove;
-            lstFiles.KeyDown += LstFiles_KeyDown;
             // 
             // ctxFiles
             // 
             ctxFiles.ImageScalingSize = new Size(24, 24);
             ctxFiles.Items.AddRange(new ToolStripItem[] { miOpenFile, miRevealInExplorer, miOpenContainingFolder, miCopyPath, miFilesSep1, miSortByName, miSortByExtension });
             ctxFiles.Name = "ctxFiles";
-            ctxFiles.Size = new Size(223, 68);
+            ctxFiles.Size = new Size(269, 202);
+            // 
+            // miOpenFile
+            // 
+            miOpenFile.Name = "miOpenFile";
+            miOpenFile.Size = new Size(268, 32);
+            miOpenFile.Text = "Open";
+            miOpenFile.Click += MiOpenFile_Click;
+            // 
+            // miRevealInExplorer
+            // 
+            miRevealInExplorer.Name = "miRevealInExplorer";
+            miRevealInExplorer.Size = new Size(268, 32);
+            miRevealInExplorer.Text = "Reveal in Explorer";
+            miRevealInExplorer.Click += MiRevealInExplorer_Click;
+            // 
+            // miOpenContainingFolder
+            // 
+            miOpenContainingFolder.Name = "miOpenContainingFolder";
+            miOpenContainingFolder.Size = new Size(268, 32);
+            miOpenContainingFolder.Text = "Open containing folder";
+            miOpenContainingFolder.Click += MiOpenContainingFolder_Click;
+            // 
+            // miCopyPath
+            // 
+            miCopyPath.Name = "miCopyPath";
+            miCopyPath.Size = new Size(268, 32);
+            miCopyPath.Text = "Copy path";
+            miCopyPath.Click += MiCopyPath_Click;
+            // 
+            // miFilesSep1
+            // 
+            miFilesSep1.Name = "miFilesSep1";
+            miFilesSep1.Size = new Size(265, 6);
             // 
             // miSortByName
             // 
             miSortByName.Name = "miSortByName";
-            miSortByName.Size = new Size(222, 32);
+            miSortByName.Size = new Size(268, 32);
             miSortByName.Text = "Sort by Name";
             miSortByName.Click += MiSortByName_Click;
             // 
             // miSortByExtension
             // 
             miSortByExtension.Name = "miSortByExtension";
-            miSortByExtension.Size = new Size(222, 32);
+            miSortByExtension.Size = new Size(268, 32);
             miSortByExtension.Text = "Sort by Extension";
             miSortByExtension.Click += MiSortByExtension_Click;
-            //
-            // miOpenFile
-            //
-            miOpenFile.Name = "miOpenFile";
-            miOpenFile.Size = new Size(252, 32);
-            miOpenFile.Text = "Open";
-            miOpenFile.Click += MiOpenFile_Click;
-            //
-            // miRevealInExplorer
-            //
-            miRevealInExplorer.Name = "miRevealInExplorer";
-            miRevealInExplorer.Size = new Size(252, 32);
-            miRevealInExplorer.Text = "Reveal in Explorer";
-            miRevealInExplorer.Click += MiRevealInExplorer_Click;
-            //
-            // miOpenContainingFolder
-            //
-            miOpenContainingFolder.Name = "miOpenContainingFolder";
-            miOpenContainingFolder.Size = new Size(252, 32);
-            miOpenContainingFolder.Text = "Open containing folder";
-            miOpenContainingFolder.Click += MiOpenContainingFolder_Click;
-            //
-            // miCopyPath
-            //
-            miCopyPath.Name = "miCopyPath";
-            miCopyPath.Size = new Size(252, 32);
-            miCopyPath.Text = "Copy path";
-            miCopyPath.Click += MiCopyPath_Click;
-            //
-            // miFilesSep1
-            //
-            miFilesSep1.Name = "miFilesSep1";
             // 
             // pnlFileButtons
             // 
@@ -642,7 +833,7 @@ namespace FileContentToolkit
             pnlFileButtons.Controls.Add(btnMoveUp);
             pnlFileButtons.Controls.Add(btnMoveDown);
             pnlFileButtons.Dock = DockStyle.Bottom;
-            pnlFileButtons.Location = new Point(10, 424);
+            pnlFileButtons.Location = new Point(10, 452);
             pnlFileButtons.Name = "pnlFileButtons";
             pnlFileButtons.Size = new Size(437, 48);
             pnlFileButtons.TabIndex = 1;
@@ -663,7 +854,7 @@ namespace FileContentToolkit
             btnAddMultipleFiles.FlatStyle = FlatStyle.Flat;
             btnAddMultipleFiles.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             btnAddMultipleFiles.ForeColor = Color.White;
-            btnAddMultipleFiles.Location = new Point(130, 5);
+            btnAddMultipleFiles.Location = new Point(119, 5);
             btnAddMultipleFiles.Name = "btnAddMultipleFiles";
             btnAddMultipleFiles.Size = new Size(100, 38);
             btnAddMultipleFiles.TabIndex = 1;
@@ -678,9 +869,9 @@ namespace FileContentToolkit
             btnRemoveFile.FlatStyle = FlatStyle.Flat;
             btnRemoveFile.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             btnRemoveFile.ForeColor = Color.White;
-            btnRemoveFile.Location = new Point(240, 5);
+            btnRemoveFile.Location = new Point(229, 5);
             btnRemoveFile.Name = "btnRemoveFile";
-            btnRemoveFile.Size = new Size(90, 38);
+            btnRemoveFile.Size = new Size(94, 38);
             btnRemoveFile.TabIndex = 2;
             btnRemoveFile.Text = "Remove";
             btnRemoveFile.UseVisualStyleBackColor = false;
@@ -744,7 +935,7 @@ namespace FileContentToolkit
             // txtIgnorePatterns
             // 
             txtIgnorePatterns.BorderStyle = BorderStyle.FixedSingle;
-            txtIgnorePatterns.Location = new Point(10, 340);
+            txtIgnorePatterns.Location = new Point(10, 344);
             txtIgnorePatterns.Name = "txtIgnorePatterns";
             txtIgnorePatterns.Size = new Size(430, 34);
             txtIgnorePatterns.TabIndex = 7;
@@ -754,7 +945,7 @@ namespace FileContentToolkit
             // 
             lblIgnorePatterns.AutoSize = true;
             lblIgnorePatterns.Font = new Font("Segoe UI", 9F);
-            lblIgnorePatterns.Location = new Point(10, 312);
+            lblIgnorePatterns.Location = new Point(10, 316);
             lblIgnorePatterns.Name = "lblIgnorePatterns";
             lblIgnorePatterns.Size = new Size(136, 25);
             lblIgnorePatterns.TabIndex = 6;
@@ -798,9 +989,133 @@ namespace FileContentToolkit
             // cmsAddDropdown
             // 
             cmsAddDropdown.ImageScalingSize = new Size(24, 24);
-            cmsAddDropdown.Items.AddRange(new ToolStripItem[] { miShowExtensionSummary });
+            cmsAddDropdown.Items.AddRange(new ToolStripItem[] { mnuAddLangPresets, mnuAddSep1, miShowExtensionSummary });
             cmsAddDropdown.Name = "cmsAddDropdown";
-            cmsAddDropdown.Size = new Size(301, 36);
+            cmsAddDropdown.Size = new Size(301, 74);
+            // 
+            // mnuAddLangPresets
+            // 
+            mnuAddLangPresets.DropDownItems.AddRange(new ToolStripItem[] { mnuLangCs, mnuLangCpp, mnuLangWeb, mnuLangTs, mnuLangNode, mnuLangPy, mnuLangJava, mnuLangKotlin, mnuLangGo, mnuLangRust, mnuLangRuby, mnuLangPhp, mnuLangSwift, mnuLangShell, mnuLangDocs, mnuLangConfig });
+            mnuAddLangPresets.Name = "mnuAddLangPresets";
+            mnuAddLangPresets.Size = new Size(300, 32);
+            mnuAddLangPresets.Text = "Add language preset";
+            // 
+            // mnuLangCs
+            // 
+            mnuLangCs.Name = "mnuLangCs";
+            mnuLangCs.Size = new Size(272, 34);
+            mnuLangCs.Text = "C# project";
+            mnuLangCs.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangCpp
+            // 
+            mnuLangCpp.Name = "mnuLangCpp";
+            mnuLangCpp.Size = new Size(272, 34);
+            mnuLangCpp.Text = "C / C++";
+            mnuLangCpp.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangWeb
+            // 
+            mnuLangWeb.Name = "mnuLangWeb";
+            mnuLangWeb.Size = new Size(272, 34);
+            mnuLangWeb.Text = "Web (HTML/CSS/JS)";
+            mnuLangWeb.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangTs
+            // 
+            mnuLangTs.Name = "mnuLangTs";
+            mnuLangTs.Size = new Size(272, 34);
+            mnuLangTs.Text = "TypeScript / React";
+            mnuLangTs.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangNode
+            // 
+            mnuLangNode.Name = "mnuLangNode";
+            mnuLangNode.Size = new Size(272, 34);
+            mnuLangNode.Text = "Node.js";
+            mnuLangNode.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangPy
+            // 
+            mnuLangPy.Name = "mnuLangPy";
+            mnuLangPy.Size = new Size(272, 34);
+            mnuLangPy.Text = "Python";
+            mnuLangPy.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangJava
+            // 
+            mnuLangJava.Name = "mnuLangJava";
+            mnuLangJava.Size = new Size(272, 34);
+            mnuLangJava.Text = "Java";
+            mnuLangJava.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangKotlin
+            // 
+            mnuLangKotlin.Name = "mnuLangKotlin";
+            mnuLangKotlin.Size = new Size(272, 34);
+            mnuLangKotlin.Text = "Kotlin";
+            mnuLangKotlin.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangGo
+            // 
+            mnuLangGo.Name = "mnuLangGo";
+            mnuLangGo.Size = new Size(272, 34);
+            mnuLangGo.Text = "Go";
+            mnuLangGo.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangRust
+            // 
+            mnuLangRust.Name = "mnuLangRust";
+            mnuLangRust.Size = new Size(272, 34);
+            mnuLangRust.Text = "Rust";
+            mnuLangRust.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangRuby
+            // 
+            mnuLangRuby.Name = "mnuLangRuby";
+            mnuLangRuby.Size = new Size(272, 34);
+            mnuLangRuby.Text = "Ruby";
+            mnuLangRuby.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangPhp
+            // 
+            mnuLangPhp.Name = "mnuLangPhp";
+            mnuLangPhp.Size = new Size(272, 34);
+            mnuLangPhp.Text = "PHP";
+            mnuLangPhp.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangSwift
+            // 
+            mnuLangSwift.Name = "mnuLangSwift";
+            mnuLangSwift.Size = new Size(272, 34);
+            mnuLangSwift.Text = "Swift";
+            mnuLangSwift.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangShell
+            // 
+            mnuLangShell.Name = "mnuLangShell";
+            mnuLangShell.Size = new Size(272, 34);
+            mnuLangShell.Text = "Shell / Scripts";
+            mnuLangShell.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangDocs
+            // 
+            mnuLangDocs.Name = "mnuLangDocs";
+            mnuLangDocs.Size = new Size(272, 34);
+            mnuLangDocs.Text = "Docs / Markup";
+            mnuLangDocs.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuLangConfig
+            // 
+            mnuLangConfig.Name = "mnuLangConfig";
+            mnuLangConfig.Size = new Size(272, 34);
+            mnuLangConfig.Text = "Config files";
+            mnuLangConfig.Click += MnuLanguagePreset_Click;
+            // 
+            // mnuAddSep1
+            // 
+            mnuAddSep1.Name = "mnuAddSep1";
+            mnuAddSep1.Size = new Size(297, 6);
             // 
             // miShowExtensionSummary
             // 
@@ -811,12 +1126,14 @@ namespace FileContentToolkit
             // 
             // lstExtensions
             // 
+            lstExtensions.ContextMenuStrip = cmsAddDropdown;
             lstExtensions.FormattingEnabled = true;
             lstExtensions.ItemHeight = 28;
             lstExtensions.Location = new Point(10, 105);
             lstExtensions.Name = "lstExtensions";
-            lstExtensions.Size = new Size(249, 144);
+            lstExtensions.Size = new Size(249, 172);
             lstExtensions.TabIndex = 3;
+            lstExtensions.KeyDown += LstExtensions_KeyDown;
             // 
             // btnRemove
             // 
@@ -837,7 +1154,7 @@ namespace FileContentToolkit
             chkIncludeSubfolders.AutoSize = true;
             chkIncludeSubfolders.Checked = true;
             chkIncludeSubfolders.CheckState = CheckState.Checked;
-            chkIncludeSubfolders.Location = new Point(10, 275);
+            chkIncludeSubfolders.Location = new Point(10, 284);
             chkIncludeSubfolders.Name = "chkIncludeSubfolders";
             chkIncludeSubfolders.Size = new Size(209, 32);
             chkIncludeSubfolders.TabIndex = 5;
@@ -859,6 +1176,359 @@ namespace FileContentToolkit
             btnRefreshExtensions.UseVisualStyleBackColor = false;
             btnRefreshExtensions.Click += BtnRefreshExtensions_Click;
             // 
+            // cmsRecentFolders
+            // 
+            cmsRecentFolders.ImageScalingSize = new Size(20, 20);
+            cmsRecentFolders.Items.AddRange(new ToolStripItem[] { mnuRfEmpty, mnuRf01, mnuRf02, mnuRf03, mnuRf04, mnuRf05, mnuRf06, mnuRf07, mnuRf08, mnuRf09, mnuRf10, mnuRf11, mnuRf12, mnuRf13, mnuRf14, mnuRf15, mnuRfSep, mnuRfClear });
+            cmsRecentFolders.Name = "cmsRecentFolders";
+            cmsRecentFolders.Size = new Size(183, 554);
+            // 
+            // mnuRfEmpty
+            // 
+            mnuRfEmpty.Enabled = false;
+            mnuRfEmpty.Name = "mnuRfEmpty";
+            mnuRfEmpty.Size = new Size(182, 32);
+            mnuRfEmpty.Text = "(empty)";
+            // 
+            // mnuRf01
+            // 
+            mnuRf01.Name = "mnuRf01";
+            mnuRf01.Size = new Size(182, 32);
+            // 
+            // mnuRf02
+            // 
+            mnuRf02.Name = "mnuRf02";
+            mnuRf02.Size = new Size(182, 32);
+            // 
+            // mnuRf03
+            // 
+            mnuRf03.Name = "mnuRf03";
+            mnuRf03.Size = new Size(182, 32);
+            // 
+            // mnuRf04
+            // 
+            mnuRf04.Name = "mnuRf04";
+            mnuRf04.Size = new Size(182, 32);
+            // 
+            // mnuRf05
+            // 
+            mnuRf05.Name = "mnuRf05";
+            mnuRf05.Size = new Size(182, 32);
+            // 
+            // mnuRf06
+            // 
+            mnuRf06.Name = "mnuRf06";
+            mnuRf06.Size = new Size(182, 32);
+            // 
+            // mnuRf07
+            // 
+            mnuRf07.Name = "mnuRf07";
+            mnuRf07.Size = new Size(182, 32);
+            // 
+            // mnuRf08
+            // 
+            mnuRf08.Name = "mnuRf08";
+            mnuRf08.Size = new Size(182, 32);
+            // 
+            // mnuRf09
+            // 
+            mnuRf09.Name = "mnuRf09";
+            mnuRf09.Size = new Size(182, 32);
+            // 
+            // mnuRf10
+            // 
+            mnuRf10.Name = "mnuRf10";
+            mnuRf10.Size = new Size(182, 32);
+            // 
+            // mnuRf11
+            // 
+            mnuRf11.Name = "mnuRf11";
+            mnuRf11.Size = new Size(182, 32);
+            // 
+            // mnuRf12
+            // 
+            mnuRf12.Name = "mnuRf12";
+            mnuRf12.Size = new Size(182, 32);
+            // 
+            // mnuRf13
+            // 
+            mnuRf13.Name = "mnuRf13";
+            mnuRf13.Size = new Size(182, 32);
+            // 
+            // mnuRf14
+            // 
+            mnuRf14.Name = "mnuRf14";
+            mnuRf14.Size = new Size(182, 32);
+            // 
+            // mnuRf15
+            // 
+            mnuRf15.Name = "mnuRf15";
+            mnuRf15.Size = new Size(182, 32);
+            // 
+            // mnuRfSep
+            // 
+            mnuRfSep.Name = "mnuRfSep";
+            mnuRfSep.Size = new Size(179, 6);
+            // 
+            // mnuRfClear
+            // 
+            mnuRfClear.Name = "mnuRfClear";
+            mnuRfClear.Size = new Size(182, 32);
+            mnuRfClear.Text = "Clear history";
+            mnuRfClear.Click += MnuRfClear_Click;
+            // 
+            // cmsRecentSearches
+            // 
+            cmsRecentSearches.ImageScalingSize = new Size(20, 20);
+            cmsRecentSearches.Items.AddRange(new ToolStripItem[] { mnuRsEmpty, mnuRs01, mnuRs02, mnuRs03, mnuRs04, mnuRs05, mnuRs06, mnuRs07, mnuRs08, mnuRs09, mnuRs10, mnuRs11, mnuRs12, mnuRs13, mnuRs14, mnuRs15, mnuRsSep, mnuRsClear });
+            cmsRecentSearches.Name = "cmsRecentSearches";
+            cmsRecentSearches.Size = new Size(183, 554);
+            // 
+            // mnuRsEmpty
+            // 
+            mnuRsEmpty.Enabled = false;
+            mnuRsEmpty.Name = "mnuRsEmpty";
+            mnuRsEmpty.Size = new Size(182, 32);
+            mnuRsEmpty.Text = "(empty)";
+            // 
+            // mnuRs01
+            // 
+            mnuRs01.Name = "mnuRs01";
+            mnuRs01.Size = new Size(182, 32);
+            // 
+            // mnuRs02
+            // 
+            mnuRs02.Name = "mnuRs02";
+            mnuRs02.Size = new Size(182, 32);
+            // 
+            // mnuRs03
+            // 
+            mnuRs03.Name = "mnuRs03";
+            mnuRs03.Size = new Size(182, 32);
+            // 
+            // mnuRs04
+            // 
+            mnuRs04.Name = "mnuRs04";
+            mnuRs04.Size = new Size(182, 32);
+            // 
+            // mnuRs05
+            // 
+            mnuRs05.Name = "mnuRs05";
+            mnuRs05.Size = new Size(182, 32);
+            // 
+            // mnuRs06
+            // 
+            mnuRs06.Name = "mnuRs06";
+            mnuRs06.Size = new Size(182, 32);
+            // 
+            // mnuRs07
+            // 
+            mnuRs07.Name = "mnuRs07";
+            mnuRs07.Size = new Size(182, 32);
+            // 
+            // mnuRs08
+            // 
+            mnuRs08.Name = "mnuRs08";
+            mnuRs08.Size = new Size(182, 32);
+            // 
+            // mnuRs09
+            // 
+            mnuRs09.Name = "mnuRs09";
+            mnuRs09.Size = new Size(182, 32);
+            // 
+            // mnuRs10
+            // 
+            mnuRs10.Name = "mnuRs10";
+            mnuRs10.Size = new Size(182, 32);
+            // 
+            // mnuRs11
+            // 
+            mnuRs11.Name = "mnuRs11";
+            mnuRs11.Size = new Size(182, 32);
+            // 
+            // mnuRs12
+            // 
+            mnuRs12.Name = "mnuRs12";
+            mnuRs12.Size = new Size(182, 32);
+            // 
+            // mnuRs13
+            // 
+            mnuRs13.Name = "mnuRs13";
+            mnuRs13.Size = new Size(182, 32);
+            // 
+            // mnuRs14
+            // 
+            mnuRs14.Name = "mnuRs14";
+            mnuRs14.Size = new Size(182, 32);
+            // 
+            // mnuRs15
+            // 
+            mnuRs15.Name = "mnuRs15";
+            mnuRs15.Size = new Size(182, 32);
+            // 
+            // mnuRsSep
+            // 
+            mnuRsSep.Name = "mnuRsSep";
+            mnuRsSep.Size = new Size(179, 6);
+            // 
+            // mnuRsClear
+            // 
+            mnuRsClear.Name = "mnuRsClear";
+            mnuRsClear.Size = new Size(182, 32);
+            mnuRsClear.Text = "Clear history";
+            mnuRsClear.Click += MnuRsClear_Click;
+            // 
+            // cmsPresets
+            // 
+            cmsPresets.ImageScalingSize = new Size(20, 20);
+            cmsPresets.Items.AddRange(new ToolStripItem[] { mnuPsEmpty, mnuPs01, mnuPs02, mnuPs03, mnuPs04, mnuPs05, mnuPs06, mnuPs07, mnuPs08, mnuPs09, mnuPs10, mnuPs11, mnuPs12, mnuPs13, mnuPs14, mnuPs15, mnuPs16, mnuPs17, mnuPs18, mnuPs19, mnuPs20, mnuPs21, mnuPs22, mnuPs23, mnuPs24, mnuPs25, mnuPsSep, mnuPsManage });
+            cmsPresets.Name = "cmsPresets";
+            cmsPresets.Size = new Size(224, 874);
+            // 
+            // mnuPsEmpty
+            // 
+            mnuPsEmpty.Enabled = false;
+            mnuPsEmpty.Name = "mnuPsEmpty";
+            mnuPsEmpty.Size = new Size(223, 32);
+            mnuPsEmpty.Text = "(no presets)";
+            // 
+            // mnuPs01
+            // 
+            mnuPs01.Name = "mnuPs01";
+            mnuPs01.Size = new Size(223, 32);
+            // 
+            // mnuPs02
+            // 
+            mnuPs02.Name = "mnuPs02";
+            mnuPs02.Size = new Size(223, 32);
+            // 
+            // mnuPs03
+            // 
+            mnuPs03.Name = "mnuPs03";
+            mnuPs03.Size = new Size(223, 32);
+            // 
+            // mnuPs04
+            // 
+            mnuPs04.Name = "mnuPs04";
+            mnuPs04.Size = new Size(223, 32);
+            // 
+            // mnuPs05
+            // 
+            mnuPs05.Name = "mnuPs05";
+            mnuPs05.Size = new Size(223, 32);
+            // 
+            // mnuPs06
+            // 
+            mnuPs06.Name = "mnuPs06";
+            mnuPs06.Size = new Size(223, 32);
+            // 
+            // mnuPs07
+            // 
+            mnuPs07.Name = "mnuPs07";
+            mnuPs07.Size = new Size(223, 32);
+            // 
+            // mnuPs08
+            // 
+            mnuPs08.Name = "mnuPs08";
+            mnuPs08.Size = new Size(223, 32);
+            // 
+            // mnuPs09
+            // 
+            mnuPs09.Name = "mnuPs09";
+            mnuPs09.Size = new Size(223, 32);
+            // 
+            // mnuPs10
+            // 
+            mnuPs10.Name = "mnuPs10";
+            mnuPs10.Size = new Size(223, 32);
+            // 
+            // mnuPs11
+            // 
+            mnuPs11.Name = "mnuPs11";
+            mnuPs11.Size = new Size(223, 32);
+            // 
+            // mnuPs12
+            // 
+            mnuPs12.Name = "mnuPs12";
+            mnuPs12.Size = new Size(223, 32);
+            // 
+            // mnuPs13
+            // 
+            mnuPs13.Name = "mnuPs13";
+            mnuPs13.Size = new Size(223, 32);
+            // 
+            // mnuPs14
+            // 
+            mnuPs14.Name = "mnuPs14";
+            mnuPs14.Size = new Size(223, 32);
+            // 
+            // mnuPs15
+            // 
+            mnuPs15.Name = "mnuPs15";
+            mnuPs15.Size = new Size(223, 32);
+            // 
+            // mnuPs16
+            // 
+            mnuPs16.Name = "mnuPs16";
+            mnuPs16.Size = new Size(223, 32);
+            // 
+            // mnuPs17
+            // 
+            mnuPs17.Name = "mnuPs17";
+            mnuPs17.Size = new Size(223, 32);
+            // 
+            // mnuPs18
+            // 
+            mnuPs18.Name = "mnuPs18";
+            mnuPs18.Size = new Size(223, 32);
+            // 
+            // mnuPs19
+            // 
+            mnuPs19.Name = "mnuPs19";
+            mnuPs19.Size = new Size(223, 32);
+            // 
+            // mnuPs20
+            // 
+            mnuPs20.Name = "mnuPs20";
+            mnuPs20.Size = new Size(223, 32);
+            // 
+            // mnuPs21
+            // 
+            mnuPs21.Name = "mnuPs21";
+            mnuPs21.Size = new Size(223, 32);
+            // 
+            // mnuPs22
+            // 
+            mnuPs22.Name = "mnuPs22";
+            mnuPs22.Size = new Size(223, 32);
+            // 
+            // mnuPs23
+            // 
+            mnuPs23.Name = "mnuPs23";
+            mnuPs23.Size = new Size(223, 32);
+            // 
+            // mnuPs24
+            // 
+            mnuPs24.Name = "mnuPs24";
+            mnuPs24.Size = new Size(223, 32);
+            // 
+            // mnuPs25
+            // 
+            mnuPs25.Name = "mnuPs25";
+            mnuPs25.Size = new Size(223, 32);
+            // 
+            // mnuPsSep
+            // 
+            mnuPsSep.Name = "mnuPsSep";
+            mnuPsSep.Size = new Size(220, 6);
+            // 
+            // mnuPsManage
+            // 
+            mnuPsManage.Name = "mnuPsManage";
+            mnuPsManage.Size = new Size(223, 32);
+            mnuPsManage.Text = "Manage presets…";
+            mnuPsManage.Click += MnuPsManage_Click;
+            // 
             // menuMain
             // 
             menuMain.BackColor = Color.FromArgb(245, 247, 250);
@@ -870,27 +1540,27 @@ namespace FileContentToolkit
             menuMain.Size = new Size(1640, 33);
             menuMain.TabIndex = 11;
             // 
+            // mnuView
+            // 
+            mnuView.DropDownItems.AddRange(new ToolStripItem[] { mnuViewDarkMode });
+            mnuView.Name = "mnuView";
+            mnuView.Size = new Size(69, 29);
+            mnuView.Text = "&View";
+            // 
+            // mnuViewDarkMode
+            // 
+            mnuViewDarkMode.CheckOnClick = true;
+            mnuViewDarkMode.Name = "mnuViewDarkMode";
+            mnuViewDarkMode.Size = new Size(206, 34);
+            mnuViewDarkMode.Text = "&Dark mode";
+            mnuViewDarkMode.CheckedChanged += MnuViewDarkMode_CheckedChanged;
+            // 
             // mnuHelp
             // 
             mnuHelp.DropDownItems.AddRange(new ToolStripItem[] { mnuHelpShortcuts, mnuHelpCheckUpdates, mnuHelpSep1, mnuHelpAbout });
             mnuHelp.Name = "mnuHelp";
             mnuHelp.Size = new Size(67, 29);
             mnuHelp.Text = "&Help";
-            //
-            // mnuView
-            //
-            mnuView.DropDownItems.AddRange(new ToolStripItem[] { mnuViewDarkMode });
-            mnuView.Name = "mnuView";
-            mnuView.Size = new Size(60, 29);
-            mnuView.Text = "&View";
-            //
-            // mnuViewDarkMode
-            //
-            mnuViewDarkMode.CheckOnClick = true;
-            mnuViewDarkMode.Name = "mnuViewDarkMode";
-            mnuViewDarkMode.Size = new Size(220, 34);
-            mnuViewDarkMode.Text = "&Dark mode";
-            mnuViewDarkMode.CheckedChanged += MnuViewDarkMode_CheckedChanged;
             // 
             // mnuHelpShortcuts
             // 
@@ -899,6 +1569,13 @@ namespace FileContentToolkit
             mnuHelpShortcuts.Size = new Size(323, 34);
             mnuHelpShortcuts.Text = "&Keyboard Shortcuts…";
             mnuHelpShortcuts.Click += MnuHelpShortcuts_Click;
+            // 
+            // mnuHelpCheckUpdates
+            // 
+            mnuHelpCheckUpdates.Name = "mnuHelpCheckUpdates";
+            mnuHelpCheckUpdates.Size = new Size(323, 34);
+            mnuHelpCheckUpdates.Text = "Check for &updates…";
+            mnuHelpCheckUpdates.Click += MnuHelpCheckUpdates_Click;
             // 
             // mnuHelpSep1
             // 
@@ -911,80 +1588,75 @@ namespace FileContentToolkit
             mnuHelpAbout.Size = new Size(323, 34);
             mnuHelpAbout.Text = "&About…";
             mnuHelpAbout.Click += MnuHelpAbout_Click;
-            //
-            // mnuHelpCheckUpdates
-            //
-            mnuHelpCheckUpdates.Name = "mnuHelpCheckUpdates";
-            mnuHelpCheckUpdates.Size = new Size(323, 34);
-            mnuHelpCheckUpdates.Text = "Check for &updates…";
-            mnuHelpCheckUpdates.Click += MnuHelpCheckUpdates_Click;
-            //
+            // 
             // statusBar
-            //
+            // 
             statusBar.BackColor = Color.FromArgb(233, 236, 239);
             statusBar.Font = new Font("Segoe UI", 9F);
             statusBar.ImageScalingSize = new Size(20, 20);
             statusBar.Items.AddRange(new ToolStripItem[] { sbFileCount, sbTotalSize, sbSpring, sbScanStatus, sbUpdateNotice });
+            statusBar.Location = new Point(0, 1189);
             statusBar.Name = "statusBar";
             statusBar.Padding = new Padding(8, 2, 8, 2);
+            statusBar.Size = new Size(1640, 36);
             statusBar.SizingGrip = false;
-            //
+            statusBar.TabIndex = 12;
+            // 
             // sbFileCount
-            //
-            sbFileCount.Name = "sbFileCount";
+            // 
             sbFileCount.ForeColor = Color.FromArgb(33, 37, 41);
+            sbFileCount.Name = "sbFileCount";
+            sbFileCount.Size = new Size(65, 25);
             sbFileCount.Text = "Files: 0";
-            sbFileCount.AutoSize = true;
-            //
+            // 
             // sbTotalSize
-            //
-            sbTotalSize.Name = "sbTotalSize";
+            // 
             sbTotalSize.ForeColor = Color.FromArgb(33, 37, 41);
-            sbTotalSize.Text = "Size: 0 B";
-            sbTotalSize.AutoSize = true;
             sbTotalSize.Margin = new Padding(20, 3, 0, 2);
-            //
-            // sbSpring (spacer)
-            //
+            sbTotalSize.Name = "sbTotalSize";
+            sbTotalSize.Size = new Size(77, 27);
+            sbTotalSize.Text = "Size: 0 B";
+            // 
+            // sbSpring
+            // 
             sbSpring.Name = "sbSpring";
+            sbSpring.Size = new Size(1462, 25);
             sbSpring.Spring = true;
-            sbSpring.Text = "";
-            //
+            // 
             // sbScanStatus
-            //
-            sbScanStatus.Name = "sbScanStatus";
+            // 
             sbScanStatus.ForeColor = Color.FromArgb(108, 117, 125);
-            sbScanStatus.Text = "";
-            sbScanStatus.AutoSize = true;
-            //
+            sbScanStatus.Name = "sbScanStatus";
+            sbScanStatus.Size = new Size(0, 25);
+            // 
             // sbUpdateNotice
-            //
-            sbUpdateNotice.Name = "sbUpdateNotice";
-            sbUpdateNotice.ForeColor = Color.FromArgb(13, 110, 253);
+            // 
             sbUpdateNotice.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            sbUpdateNotice.ForeColor = Color.FromArgb(13, 110, 253);
             sbUpdateNotice.IsLink = true;
-            sbUpdateNotice.Text = "";
-            sbUpdateNotice.Visible = false;
             sbUpdateNotice.Margin = new Padding(20, 3, 0, 2);
+            sbUpdateNotice.Name = "sbUpdateNotice";
+            sbUpdateNotice.Size = new Size(0, 27);
+            sbUpdateNotice.Visible = false;
             sbUpdateNotice.Click += SbUpdateNotice_Click;
-            //
+            // 
             // pnlBottom
-            //
+            // 
             pnlBottom.BackColor = Color.FromArgb(245, 247, 250);
             pnlBottom.Controls.Add(progressBar);
             pnlBottom.Controls.Add(btnGenerate);
             pnlBottom.Dock = DockStyle.Bottom;
-            pnlBottom.Location = new Point(0, 1110);
+            pnlBottom.Location = new Point(0, 1138);
             pnlBottom.Name = "pnlBottom";
-            pnlBottom.Size = new Size(1640, 115);
+            pnlBottom.Size = new Size(1640, 51);
             pnlBottom.TabIndex = 3;
             // 
             // progressBar
             // 
-            progressBar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            progressBar.Location = new Point(20, 80);
+            progressBar.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            progressBar.Location = new Point(955, 18);
             progressBar.Name = "progressBar";
-            progressBar.Size = new Size(1600, 25);
+            progressBar.Size = new Size(655, 16);
             progressBar.TabIndex = 1;
             progressBar.Visible = false;
             // 
@@ -995,9 +1667,9 @@ namespace FileContentToolkit
             btnGenerate.FlatStyle = FlatStyle.Flat;
             btnGenerate.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             btnGenerate.ForeColor = Color.White;
-            btnGenerate.Location = new Point(695, 20);
+            btnGenerate.Location = new Point(695, 0);
             btnGenerate.Name = "btnGenerate";
-            btnGenerate.Size = new Size(250, 60);
+            btnGenerate.Size = new Size(240, 49);
             btnGenerate.TabIndex = 0;
             btnGenerate.Text = "▶  GENERATE";
             btnGenerate.UseVisualStyleBackColor = false;
@@ -1013,7 +1685,7 @@ namespace FileContentToolkit
             pnlRight.Location = new Point(497, 198);
             pnlRight.Name = "pnlRight";
             pnlRight.Padding = new Padding(20);
-            pnlRight.Size = new Size(1143, 912);
+            pnlRight.Size = new Size(1143, 940);
             pnlRight.TabIndex = 2;
             // 
             // rtbOutput
@@ -1024,7 +1696,7 @@ namespace FileContentToolkit
             rtbOutput.Location = new Point(20, 240);
             rtbOutput.Name = "rtbOutput";
             rtbOutput.ReadOnly = true;
-            rtbOutput.Size = new Size(1103, 652);
+            rtbOutput.Size = new Size(1103, 680);
             rtbOutput.TabIndex = 1;
             rtbOutput.Text = "";
             rtbOutput.WordWrap = false;
@@ -1125,7 +1797,7 @@ namespace FileContentToolkit
             btnExportOutput.FlatStyle = FlatStyle.Flat;
             btnExportOutput.Font = new Font("Segoe UI", 9F);
             btnExportOutput.ForeColor = Color.FromArgb(73, 80, 87);
-            btnExportOutput.Location = new Point(798, 0);
+            btnExportOutput.Location = new Point(778, 0);
             btnExportOutput.Name = "btnExportOutput";
             btnExportOutput.Size = new Size(105, 50);
             btnExportOutput.TabIndex = 4;
@@ -1144,7 +1816,7 @@ namespace FileContentToolkit
             btnEditOutput.FlatStyle = FlatStyle.Flat;
             btnEditOutput.Font = new Font("Segoe UI", 9F);
             btnEditOutput.ForeColor = Color.FromArgb(73, 80, 87);
-            btnEditOutput.Location = new Point(903, 0);
+            btnEditOutput.Location = new Point(883, 0);
             btnEditOutput.Name = "btnEditOutput";
             btnEditOutput.Size = new Size(100, 50);
             btnEditOutput.TabIndex = 3;
@@ -1158,19 +1830,57 @@ namespace FileContentToolkit
             btnCopyOutput.BackColor = Color.FromArgb(248, 249, 250);
             btnCopyOutput.Cursor = Cursors.Hand;
             btnCopyOutput.Dock = DockStyle.Right;
+            btnCopyOutput.DropDownMenu = cmsCopyAs;
+            btnCopyOutput.DropDownWidth = 22;
             btnCopyOutput.FlatAppearance.BorderColor = Color.FromArgb(220, 220, 220);
             btnCopyOutput.FlatAppearance.MouseOverBackColor = Color.FromArgb(230, 230, 230);
             btnCopyOutput.FlatStyle = FlatStyle.Flat;
             btnCopyOutput.Font = new Font("Segoe UI", 9F);
             btnCopyOutput.ForeColor = Color.FromArgb(73, 80, 87);
-            btnCopyOutput.Location = new Point(1003, 0);
+            btnCopyOutput.Location = new Point(983, 0);
             btnCopyOutput.Name = "btnCopyOutput";
-            btnCopyOutput.Size = new Size(100, 50);
+            btnCopyOutput.ShowSplit = true;
+            btnCopyOutput.Size = new Size(120, 50);
             btnCopyOutput.TabIndex = 2;
             btnCopyOutput.Text = "📋 Copy";
-            toolTip1.SetToolTip(btnCopyOutput, "Copy output to clipboard");
+            toolTip1.SetToolTip(btnCopyOutput, "Copy output to clipboard (click ▾ for formats)");
             btnCopyOutput.UseVisualStyleBackColor = false;
             btnCopyOutput.Click += BtnCopyOutput_Click;
+            // 
+            // cmsCopyAs
+            // 
+            cmsCopyAs.ImageScalingSize = new Size(20, 20);
+            cmsCopyAs.Items.AddRange(new ToolStripItem[] { mnuCopyPlain, mnuCopyMarkdown, mnuCopyXml, mnuCopyJson });
+            cmsCopyAs.Name = "cmsCopyAs";
+            cmsCopyAs.Size = new Size(282, 132);
+            // 
+            // mnuCopyPlain
+            // 
+            mnuCopyPlain.Name = "mnuCopyPlain";
+            mnuCopyPlain.Size = new Size(281, 32);
+            mnuCopyPlain.Text = "Plain text";
+            mnuCopyPlain.Click += MnuCopyPlain_Click;
+            // 
+            // mnuCopyMarkdown
+            // 
+            mnuCopyMarkdown.Name = "mnuCopyMarkdown";
+            mnuCopyMarkdown.Size = new Size(281, 32);
+            mnuCopyMarkdown.Text = "Markdown (fenced code)";
+            mnuCopyMarkdown.Click += MnuCopyMarkdown_Click;
+            // 
+            // mnuCopyXml
+            // 
+            mnuCopyXml.Name = "mnuCopyXml";
+            mnuCopyXml.Size = new Size(281, 32);
+            mnuCopyXml.Text = "XML (Claude-friendly)";
+            mnuCopyXml.Click += MnuCopyXml_Click;
+            // 
+            // mnuCopyJson
+            // 
+            mnuCopyJson.Name = "mnuCopyJson";
+            mnuCopyJson.Size = new Size(281, 32);
+            mnuCopyJson.Text = "JSON array";
+            mnuCopyJson.Click += MnuCopyJson_Click;
             // 
             // lblOutput
             // 
@@ -1293,6 +2003,9 @@ namespace FileContentToolkit
             grpExtensions.ResumeLayout(false);
             grpExtensions.PerformLayout();
             cmsAddDropdown.ResumeLayout(false);
+            cmsRecentFolders.ResumeLayout(false);
+            cmsRecentSearches.ResumeLayout(false);
+            cmsPresets.ResumeLayout(false);
             menuMain.ResumeLayout(false);
             menuMain.PerformLayout();
             statusBar.ResumeLayout(false);
@@ -1305,6 +2018,7 @@ namespace FileContentToolkit
             pnlOutput.PerformLayout();
             pnlOutputHeader.ResumeLayout(false);
             pnlOutputHeader.PerformLayout();
+            cmsCopyAs.ResumeLayout(false);
             pnlCompressionTools.ResumeLayout(false);
             pnlCompressionTools.PerformLayout();
             ResumeLayout(false);

@@ -125,6 +125,99 @@ namespace FileContentToolkit.UI
             button.MouseLeave += (s, e) => button.BackColor = baseColor;
         }
 
+        // -------------------- Dark mode --------------------
+
+        public static bool IsDark { get; private set; }
+
+        // Map of "neutral" light colors to their dark equivalents. Accent colors
+        // (header blue, success green, danger red, etc.) are intentionally absent
+        // so they remain vivid in dark mode.
+        private static readonly Dictionary<Color, Color> DarkRemap = new()
+        {
+            [Color.White] = Color.FromArgb(0x25, 0x25, 0x26),
+            [Color.FromArgb(245, 247, 250)] = Color.FromArgb(0x1E, 0x1E, 0x1E),
+            [Color.FromArgb(248, 249, 250)] = Color.FromArgb(0x32, 0x32, 0x35),
+            [Color.FromArgb(233, 236, 239)] = Color.FromArgb(0x37, 0x37, 0x3A),
+            [Color.FromArgb(33, 37, 41)]    = Color.FromArgb(0xE8, 0xE6, 0xE3),
+            [Color.FromArgb(73, 80, 87)]    = Color.FromArgb(0xD0, 0xD0, 0xD0),
+            [Color.FromArgb(108, 117, 125)] = Color.FromArgb(0xB0, 0xB5, 0xBB),
+            [Color.FromArgb(220, 220, 220)] = Color.FromArgb(0x45, 0x45, 0x45),
+            [Color.Black] = Color.FromArgb(0xE8, 0xE6, 0xE3),
+        };
+
+        private sealed class ThemeSnapshot
+        {
+            public Color Back; public Color Fore;
+            public ThemeSnapshot(Color b, Color f) { Back = b; Fore = f; }
+        }
+
+        // Use a weak side-table keyed by control rather than abusing Control.Tag,
+        // because some controls (TreeNode, etc.) already use Tag for their own data.
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Control, ThemeSnapshot> _snapshots = new();
+
+        public static void Apply(Form form, bool dark)
+        {
+            if (form == null) return;
+            IsDark = dark;
+            ApplyToControl(form, dark);
+        }
+
+        private static void ApplyToControl(Control c, bool dark)
+        {
+            if (!_snapshots.TryGetValue(c, out var snap))
+            {
+                snap = new ThemeSnapshot(c.BackColor, c.ForeColor);
+                _snapshots.Add(c, snap);
+            }
+
+            if (dark)
+            {
+                c.BackColor = DarkRemap.TryGetValue(snap.Back, out var b) ? b : snap.Back;
+                c.ForeColor = DarkRemap.TryGetValue(snap.Fore, out var f) ? f : snap.Fore;
+            }
+            else
+            {
+                c.BackColor = snap.Back;
+                c.ForeColor = snap.Fore;
+            }
+
+            // MenuStrip / StatusStrip / ContextMenuStrip items are not in Controls — walk them.
+            if (c is ToolStrip ts)
+            {
+                foreach (ToolStripItem item in ts.Items)
+                    ApplyToolStripItem(item, dark);
+            }
+
+            foreach (Control child in c.Controls)
+                ApplyToControl(child, dark);
+        }
+
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ToolStripItem, ThemeSnapshot> _itemSnapshots = new();
+
+        private static void ApplyToolStripItem(ToolStripItem item, bool dark)
+        {
+            if (!_itemSnapshots.TryGetValue(item, out var snap))
+            {
+                snap = new ThemeSnapshot(item.BackColor, item.ForeColor);
+                _itemSnapshots.Add(item, snap);
+            }
+
+            if (dark)
+            {
+                item.BackColor = DarkRemap.TryGetValue(snap.Back, out var b) ? b : snap.Back;
+                item.ForeColor = DarkRemap.TryGetValue(snap.Fore, out var f) ? f : snap.Fore;
+            }
+            else
+            {
+                item.BackColor = snap.Back;
+                item.ForeColor = snap.Fore;
+            }
+
+            if (item is ToolStripDropDownItem dd)
+                foreach (ToolStripItem child in dd.DropDownItems)
+                    ApplyToolStripItem(child, dark);
+        }
+
         /// <summary>Build a bottom "action bar" panel with white background and right-aligned buttons.</summary>
         public static Panel BuildBottomBar(int height = 64)
         {

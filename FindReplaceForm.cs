@@ -1,27 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using FileContentToolkit.UI;
 
 namespace FileContentToolkit.Dialogs
 {
-    public class FindReplaceForm : Form
+    public partial class FindReplaceForm : Form
     {
         private readonly RichTextBox _target;
         private readonly Action<string>? _onSearchUsed;
-
-        private readonly ComboBox _cmbFind;
-        private readonly ComboBox _cmbReplace;
-        private readonly CheckBox _chkCase;
-        private readonly CheckBox _chkWord;
-        private readonly CheckBox _chkRegex;
-        private readonly Button _btnNext;
-        private readonly Button _btnPrev;
-        private readonly Button _btnReplace;
-        private readonly Button _btnReplaceAll;
-        private readonly Label _lblStatus;
 
         public FindReplaceForm(RichTextBox target,
                                IEnumerable<string>? recentSearches = null,
@@ -33,132 +21,74 @@ namespace FileContentToolkit.Dialogs
             _target = target ?? throw new ArgumentNullException(nameof(target));
             _onSearchUsed = onSearchUsed;
 
-            Text = "Find & Replace";
-            FormBorderStyle = FormBorderStyle.SizableToolWindow;
-            ShowInTaskbar = false;
-            StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(560, 290);
-            MinimumSize = new Size(480, 280);
-            KeyPreview = true;
-            Theme.ApplyForm(this);
+            InitializeComponent();
 
-            Controls.Add(Theme.BuildHeader("Find & Replace", "Search the output pane."));
-
-            var body = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Theme.White,
-                Padding = new Padding(16, 16, 16, 16)
-            };
-
-            var lblFind = new Label { Text = "Find:", Left = 0, Top = 8, Width = 70, ForeColor = Theme.BodyText, AutoSize = true };
-            _cmbFind = new ComboBox
-            {
-                Left = 80,
-                Top = 4,
-                Width = 440,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                Font = Theme.BodyFont,
-                FlatStyle = FlatStyle.Flat
-            };
-
-            var lblReplace = new Label { Text = "Replace:", Left = 0, Top = 42, Width = 70, ForeColor = Theme.BodyText, AutoSize = true };
-            _cmbReplace = new ComboBox
-            {
-                Left = 80,
-                Top = 38,
-                Width = 440,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                Font = Theme.BodyFont,
-                FlatStyle = FlatStyle.Flat
-            };
+            if (Theme.AppIcon != null) Icon = Theme.AppIcon;
+            Theme.AttachHover(btnNext, btnNext.BackColor);
+            Theme.AttachHover(btnPrev, btnPrev.BackColor);
+            Theme.AttachHover(btnReplace, btnReplace.BackColor);
+            Theme.AttachHover(btnReplaceAll, btnReplaceAll.BackColor);
 
             if (recentSearches != null)
-                foreach (var r in recentSearches) _cmbFind.Items.Add(r);
+                foreach (var r in recentSearches) cmbFind.Items.Add(r);
 
-            _chkCase = new CheckBox { Text = "Match case", Left = 80, Top = 74, Width = 110, Checked = initialCase, ForeColor = Theme.BodyText, Font = Theme.BodyFont };
-            _chkWord = new CheckBox { Text = "Whole word", Left = 200, Top = 74, Width = 110, Checked = initialWord, ForeColor = Theme.BodyText, Font = Theme.BodyFont };
-            _chkRegex = new CheckBox { Text = "Regex", Left = 320, Top = 74, Width = 90, Checked = initialRegex, ForeColor = Theme.BodyText, Font = Theme.BodyFont };
-
-            _btnNext = Theme.PrimaryButton("Find Next");
-            _btnNext.Size = new Size(105, 34); _btnNext.Left = 80; _btnNext.Top = 108;
-
-            _btnPrev = Theme.SecondaryButton("Find Prev");
-            _btnPrev.Size = new Size(105, 34); _btnPrev.Left = _btnNext.Right + 6; _btnPrev.Top = 108;
-
-            _btnReplace = Theme.ActionButton("Replace");
-            _btnReplace.Size = new Size(105, 34); _btnReplace.Left = _btnPrev.Right + 6; _btnReplace.Top = 108;
-
-            _btnReplaceAll = Theme.SuccessButton("Replace All");
-            _btnReplaceAll.Size = new Size(115, 34);
-            _btnReplaceAll.Left = _btnReplace.Right + 6; _btnReplaceAll.Top = 108;
-            _btnReplaceAll.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-
-            _lblStatus = new Label
-            {
-                Left = 0,
-                Top = 156,
-                Width = 540,
-                Height = 24,
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
-                TextAlign = ContentAlignment.MiddleLeft,
-                ForeColor = Theme.SubtleText,
-                Font = Theme.BodyFont
-            };
-
-            body.Controls.AddRange(new Control[] {
-                lblFind, _cmbFind, lblReplace, _cmbReplace,
-                _chkCase, _chkWord, _chkRegex,
-                _btnNext, _btnPrev, _btnReplace, _btnReplaceAll, _lblStatus
-            });
-
-            Controls.Add(body);
-            body.BringToFront();
-
-            AcceptButton = _btnNext;
-            _btnNext.Click += (s, e) => FindOne(forward: true);
-            _btnPrev.Click += (s, e) => FindOne(forward: false);
-            _btnReplace.Click += (s, e) => ReplaceCurrent();
-            _btnReplaceAll.Click += (s, e) => ReplaceAll();
-
-            _cmbFind.TextChanged += (s, e) => UpdateMatchCount();
-            _chkCase.CheckedChanged += (s, e) => UpdateMatchCount();
-            _chkWord.CheckedChanged += (s, e) => UpdateMatchCount();
-            _chkRegex.CheckedChanged += (s, e) => UpdateMatchCount();
-
-            KeyDown += (s, e) =>
-            {
-                if (e.KeyCode == Keys.Escape) Close();
-                else if (e.KeyCode == Keys.F3) { FindOne(forward: !e.Shift); e.Handled = true; }
-            };
+            chkRegex.Checked = initialRegex;
+            chkCase.Checked = initialCase;
+            chkWord.Checked = initialWord;
         }
 
         public void SetInitialQuery(string text)
         {
-            if (!string.IsNullOrEmpty(text)) _cmbFind.Text = text;
+            if (!string.IsNullOrEmpty(text)) cmbFind.Text = text;
             UpdateMatchCount();
-            _cmbFind.Focus();
-            _cmbFind.SelectAll();
+            cmbFind.Focus();
+            cmbFind.SelectAll();
         }
+
+        // -------------------- designer-wired handlers --------------------
+
+        private void CmbFind_TextChanged(object? sender, EventArgs e) => UpdateMatchCount();
+        private void ChkCase_CheckedChanged(object? sender, EventArgs e) => UpdateMatchCount();
+        private void ChkWord_CheckedChanged(object? sender, EventArgs e) => UpdateMatchCount();
+        private void ChkRegex_CheckedChanged(object? sender, EventArgs e) => UpdateMatchCount();
+
+        private void BtnNext_Click(object? sender, EventArgs e) => FindOne(forward: true);
+        private void BtnPrev_Click(object? sender, EventArgs e) => FindOne(forward: false);
+        private void BtnReplace_Click(object? sender, EventArgs e) => ReplaceCurrent();
+        private void BtnReplaceAll_Click(object? sender, EventArgs e) => ReplaceAll();
+
+        private void FindReplaceForm_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape)
+            {
+                Close();
+            }
+            else if (e.KeyCode == Keys.F3)
+            {
+                FindOne(forward: !e.Shift);
+                e.Handled = true;
+            }
+        }
+
+        // -------------------- search logic --------------------
 
         private void UpdateMatchCount()
         {
             var (count, _) = ComputeMatches();
-            if (string.IsNullOrEmpty(_cmbFind.Text))
-                _lblStatus.Text = "";
-            else
-                _lblStatus.Text = $"{count} match{(count == 1 ? "" : "es")}";
+            lblStatus.Text = string.IsNullOrEmpty(cmbFind.Text)
+                ? ""
+                : $"{count} match{(count == 1 ? "" : "es")}";
         }
 
         private (int Count, List<(int Index, int Length)> Matches) ComputeMatches()
         {
             var hits = new List<(int, int)>();
-            var pattern = _cmbFind.Text;
+            var pattern = cmbFind.Text;
             if (string.IsNullOrEmpty(pattern)) return (0, hits);
             var text = _target.Text ?? string.Empty;
             try
             {
-                var regex = BuildRegex(pattern, _chkRegex.Checked, _chkCase.Checked, _chkWord.Checked);
+                var regex = BuildRegex(pattern, chkRegex.Checked, chkCase.Checked, chkWord.Checked);
                 foreach (Match m in regex.Matches(text))
                     hits.Add((m.Index, m.Length));
             }
@@ -177,43 +107,43 @@ namespace FileContentToolkit.Dialogs
 
         private void FindOne(bool forward)
         {
-            var pattern = _cmbFind.Text;
+            var pattern = cmbFind.Text;
             if (string.IsNullOrEmpty(pattern)) return;
 
             var (count, matches) = ComputeMatches();
-            if (count == 0) { _lblStatus.Text = "No matches"; return; }
+            if (count == 0) { lblStatus.Text = "No matches"; return; }
 
             int caret = _target.SelectionStart + (forward ? Math.Max(_target.SelectionLength, 0) : 0);
             int target;
             if (forward)
             {
                 target = matches.FindIndex(m => m.Index >= caret);
-                if (target < 0) target = 0;
+                if (target < 0) target = 0; // wrap
             }
             else
             {
                 target = matches.FindLastIndex(m => m.Index < _target.SelectionStart);
-                if (target < 0) target = matches.Count - 1;
+                if (target < 0) target = matches.Count - 1; // wrap
             }
 
             var (idx, len) = matches[target];
             _target.Select(idx, len);
             _target.ScrollToCaret();
             _target.Focus();
-            _lblStatus.Text = $"Match {target + 1} of {count}";
+            lblStatus.Text = $"Match {target + 1} of {count}";
 
             _onSearchUsed?.Invoke(pattern);
-            if (!_cmbFind.Items.Contains(pattern)) _cmbFind.Items.Insert(0, pattern);
+            if (!cmbFind.Items.Contains(pattern)) cmbFind.Items.Insert(0, pattern);
         }
 
         private void ReplaceCurrent()
         {
             if (_target.ReadOnly)
             {
-                _lblStatus.Text = "Output is read-only — toggle Edit first.";
+                lblStatus.Text = "Output is read-only — toggle Edit first.";
                 return;
             }
-            var pattern = _cmbFind.Text;
+            var pattern = cmbFind.Text;
             if (string.IsNullOrEmpty(pattern)) return;
 
             var sel = _target.SelectedText;
@@ -221,17 +151,17 @@ namespace FileContentToolkit.Dialogs
             {
                 try
                 {
-                    var regex = BuildRegex(pattern, _chkRegex.Checked, _chkCase.Checked, _chkWord.Checked);
+                    var regex = BuildRegex(pattern, chkRegex.Checked, chkCase.Checked, chkWord.Checked);
                     if (regex.IsMatch(sel))
                     {
-                        var replacement = _cmbReplace.Text ?? "";
-                        var replaced = _chkRegex.Checked ? regex.Replace(sel, replacement) : replacement;
+                        var replacement = cmbReplace.Text ?? "";
+                        var replaced = chkRegex.Checked ? regex.Replace(sel, replacement) : replacement;
                         _target.SelectedText = replaced;
                     }
                 }
                 catch (ArgumentException ex)
                 {
-                    _lblStatus.Text = "Regex error: " + ex.Message;
+                    lblStatus.Text = "Regex error: " + ex.Message;
                     return;
                 }
             }
@@ -243,27 +173,27 @@ namespace FileContentToolkit.Dialogs
         {
             if (_target.ReadOnly)
             {
-                _lblStatus.Text = "Output is read-only — toggle Edit first.";
+                lblStatus.Text = "Output is read-only — toggle Edit first.";
                 return;
             }
-            var pattern = _cmbFind.Text;
+            var pattern = cmbFind.Text;
             if (string.IsNullOrEmpty(pattern)) return;
             try
             {
-                var regex = BuildRegex(pattern, _chkRegex.Checked, _chkCase.Checked, _chkWord.Checked);
-                var replacement = _cmbReplace.Text ?? "";
+                var regex = BuildRegex(pattern, chkRegex.Checked, chkCase.Checked, chkWord.Checked);
+                var replacement = cmbReplace.Text ?? "";
                 var text = _target.Text ?? "";
-                var newText = _chkRegex.Checked
+                var newText = chkRegex.Checked
                     ? regex.Replace(text, replacement)
                     : regex.Replace(text, _ => replacement);
                 int count = regex.Matches(text).Count;
                 _target.Text = newText;
-                _lblStatus.Text = $"Replaced {count} occurrence{(count == 1 ? "" : "s")}";
+                lblStatus.Text = $"Replaced {count} occurrence{(count == 1 ? "" : "s")}";
                 _onSearchUsed?.Invoke(pattern);
             }
             catch (ArgumentException ex)
             {
-                _lblStatus.Text = "Regex error: " + ex.Message;
+                lblStatus.Text = "Regex error: " + ex.Message;
             }
         }
     }

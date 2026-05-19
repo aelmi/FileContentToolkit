@@ -34,6 +34,9 @@ namespace FileContentToolkit.Settings
         public bool CaseSensitiveSearch { get; set; } = false;
         public bool WholeWordSearch { get; set; } = false;
 
+        // Appearance
+        public bool DarkMode { get; set; } = false;
+
         public void AddRecentFolder(string folder)
         {
             if (string.IsNullOrWhiteSpace(folder)) return;

@@ -5,127 +5,177 @@ using System.Linq;
 
 namespace FileContentToolkit
 {
+    public enum FilePlanStatus { New, Unchanged, Modified }
+
+    public class FilePlan
+    {
+        public string OriginalHeader { get; init; } = "";
+        public string RelativePath { get; init; } = "";
+        public string TargetPath { get; init; } = "";
+        public string NewContent { get; init; } = "";
+        public string? ExistingContent { get; init; }
+        public FilePlanStatus Status { get; init; }
+        public bool Include { get; set; } = true;
+    }
+
     public static class FileRecreator
     {
         /// <summary>
-        /// Parses the output and recreates files in the target folder.
+        /// Parses the output into a plan: every entry is a file the output would write,
+        /// paired with the existing on-disk content (if any) so callers can diff before writing.
         /// </summary>
-        /// <param name="output">The output text (file paths and contents).</param>
-        /// <param name="baseFolder">The folder to create files in.</param>
-        /// <param name="originalBaseFolder">Unused, kept for compatibility.</param>
-        /// <returns>The number of files created.</returns>
-        public static int RecreateFilesFromOutput(string output, string baseFolder, string originalBaseFolder)
+        public static List<FilePlan> Plan(string output, string baseFolder)
         {
-            var lines = output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-            string currentFile = null;
-            List<string> content = new List<string>();
-            int fileCount = 0;
-            var allFilePaths = new List<string>();
+            var (headers, contents) = ParseOutput(output);
+            string commonRoot = FindCommonRoot(headers);
+            var result = new List<FilePlan>(headers.Count);
 
-            // First pass: collect all file paths
-            foreach (var line in lines)
+            for (int i = 0; i < headers.Count; i++)
             {
-                if (line.EndsWith(":") && (line.Length > 2 && (line[1] == ':' || line.StartsWith(".\\"))))
-                {
-                    string filePath = line.TrimEnd(':');
-                    allFilePaths.Add(filePath);
-                }
-            }
+                var header = headers[i];
+                var newContent = contents[i];
 
-            // Find common root
-            string commonRoot = FindCommonRoot(allFilePaths);
+                string relativePath = ComputeRelativePath(header, commonRoot);
+                string targetPath = Path.Combine(baseFolder, relativePath);
 
-            // Second pass: create files
-            foreach (var line in lines)
-            {
-                if (line.EndsWith(":") && (line.Length > 2 && (line[1] == ':' || line.StartsWith(".\\"))))
+                string? existing = null;
+                if (File.Exists(targetPath))
                 {
-                    if (currentFile != null)
-                    {
-                        WriteFile(currentFile, content, baseFolder, commonRoot);
-                        fileCount++;
-                        content.Clear();
-                    }
-                    currentFile = line.TrimEnd(':');
+                    try { existing = File.ReadAllText(targetPath); }
+                    catch { existing = null; }
                 }
-                else
+
+                var status = existing == null
+                    ? FilePlanStatus.New
+                    : (string.Equals(existing, newContent, StringComparison.Ordinal)
+                        ? FilePlanStatus.Unchanged
+                        : FilePlanStatus.Modified);
+
+                result.Add(new FilePlan
                 {
-                    content.Add(line);
-                }
+                    OriginalHeader = header,
+                    RelativePath = relativePath,
+                    TargetPath = targetPath,
+                    NewContent = newContent,
+                    ExistingContent = existing,
+                    Status = status,
+                    Include = status != FilePlanStatus.Unchanged
+                });
             }
-            if (currentFile != null)
-            {
-                WriteFile(currentFile, content, baseFolder, commonRoot);
-                fileCount++;
-            }
-            return fileCount;
+            return result;
         }
 
-        // Helper to find the common root of all file paths
-        private static string FindCommonRoot(List<string> paths)
+        /// <summary>Writes every plan whose Include = true. Returns the number of files written.</summary>
+        public static int Execute(IEnumerable<FilePlan> plans)
         {
-            if (paths == null || paths.Count == 0)
-                return string.Empty;
-
-            var splitPaths = paths
-                .Select(p => p.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries))
-                .ToList();
-
-            int minLength = splitPaths.Min(parts => parts.Length);
-            int commonLength = 0;
-
-            for (int i = 0; i < minLength; i++)
+            int n = 0;
+            foreach (var p in plans)
             {
-                string part = splitPaths[0][i];
-                if (splitPaths.All(parts => string.Equals(parts[i], part, StringComparison.OrdinalIgnoreCase)))
+                if (!p.Include) continue;
+                var dir = Path.GetDirectoryName(p.TargetPath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(p.TargetPath, p.NewContent);
+                n++;
+            }
+            return n;
+        }
+
+        /// <summary>Legacy: parse + write everything in one call.</summary>
+        public static int RecreateFilesFromOutput(string output, string baseFolder, string originalBaseFolder)
+        {
+            var plans = Plan(output, baseFolder);
+            return Execute(plans);
+        }
+
+        // -------------------- parsing --------------------
+
+        private static (List<string> Headers, List<string> Contents) ParseOutput(string output)
+        {
+            var headers = new List<string>();
+            var contents = new List<string>();
+            var lines = (output ?? string.Empty).Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+
+            string? current = null;
+            var buf = new List<string>();
+            foreach (var line in lines)
+            {
+                if (IsHeader(line))
                 {
-                    commonLength++;
+                    if (current != null)
+                    {
+                        headers.Add(current);
+                        contents.Add(string.Join(Environment.NewLine, TrimTrailingBlankLines(buf)));
+                        buf.Clear();
+                    }
+                    current = line.TrimEnd(':');
                 }
                 else
                 {
-                    break;
+                    if (current != null) buf.Add(line);
                 }
             }
+            if (current != null)
+            {
+                headers.Add(current);
+                contents.Add(string.Join(Environment.NewLine, TrimTrailingBlankLines(buf)));
+            }
+            return (headers, contents);
+        }
 
-            if (commonLength == 0)
-                return string.Empty;
+        private static bool IsHeader(string line)
+        {
+            // Matches the format used by ProcessFilesAsync: a full path followed by ":" at end.
+            // Accepts drive-letter paths ("C:\…:") and dot-relative paths (".\…:").
+            return line.EndsWith(":") && line.Length > 2 && (line[1] == ':' || line.StartsWith(".\\"));
+        }
 
-            // For Windows drive root, add back the colon (e.g., "C:")
-            string[] firstParts = splitPaths[0];
+        private static List<string> TrimTrailingBlankLines(List<string> lines)
+        {
+            int end = lines.Count;
+            while (end > 0 && string.IsNullOrEmpty(lines[end - 1])) end--;
+            return end == lines.Count ? lines : lines.GetRange(0, end);
+        }
+
+        private static string FindCommonRoot(List<string> paths)
+        {
+            if (paths == null || paths.Count == 0) return string.Empty;
+
+            var split = paths
+                .Select(p => p.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                                     StringSplitOptions.RemoveEmptyEntries))
+                .ToList();
+
+            int minLength = split.Min(parts => parts.Length);
+            int commonLength = 0;
+            for (int i = 0; i < minLength; i++)
+            {
+                string part = split[0][i];
+                if (split.All(parts => string.Equals(parts[i], part, StringComparison.OrdinalIgnoreCase)))
+                    commonLength++;
+                else
+                    break;
+            }
+            if (commonLength == 0) return string.Empty;
+
+            string[] firstParts = split[0];
             string root = string.Join(Path.DirectorySeparatorChar.ToString(), firstParts.Take(commonLength));
             if (root.Length == 2 && root[1] == ':')
                 root += Path.DirectorySeparatorChar;
-
             return root;
         }
 
-        private static void WriteFile(string filePath, List<string> content, string baseFolder, string commonRoot)
+        private static string ComputeRelativePath(string filePath, string commonRoot)
         {
-            string relativePath = filePath;
-
-            if (!string.IsNullOrEmpty(commonRoot))
+            if (!string.IsNullOrEmpty(commonRoot) &&
+                filePath.StartsWith(commonRoot, StringComparison.OrdinalIgnoreCase))
             {
-                // Remove common root from filePath
-                if (filePath.StartsWith(commonRoot, StringComparison.OrdinalIgnoreCase))
-                {
-                    relativePath = filePath.Substring(commonRoot.Length);
-                    // Remove leading separator if present
-                    if (relativePath.StartsWith(Path.DirectorySeparatorChar.ToString()) || relativePath.StartsWith(Path.AltDirectorySeparatorChar.ToString()))
-                        relativePath = relativePath.Substring(1);
-                }
-                else
-                {
-                    relativePath = Path.GetFileName(filePath);
-                }
+                var rel = filePath.Substring(commonRoot.Length);
+                if (rel.StartsWith(Path.DirectorySeparatorChar.ToString()) ||
+                    rel.StartsWith(Path.AltDirectorySeparatorChar.ToString()))
+                    rel = rel.Substring(1);
+                return rel;
             }
-            else
-            {
-                relativePath = Path.GetFileName(filePath);
-            }
-
-            string outPath = Path.Combine(baseFolder, relativePath);
-            Directory.CreateDirectory(Path.GetDirectoryName(outPath));
-            File.WriteAllText(outPath, string.Join(Environment.NewLine, content));
+            return Path.GetFileName(filePath);
         }
     }
 }

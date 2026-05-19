@@ -119,26 +119,6 @@ namespace FileContentToolkit
             btnSearchFiles.MouseLeave += (s, e) => btnSearchFiles.BackColor = Color.FromArgb(108, 117, 125);
         }
 
-        private string PromptForPassword(string title)
-        {
-            using var f = new Form()
-            {
-                Width = 380,
-                Height = 150,
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                Text = title,
-                StartPosition = FormStartPosition.CenterParent
-            };
-            var lbl = new Label() { Left = 15, Top = 12, Width = 340, Text = "Password:" };
-            var tb = new System.Windows.Forms.TextBox() { Left = 15, Top = 35, Width = 340, UseSystemPasswordChar = true };
-            var ok = new System.Windows.Forms.Button() { Text = "OK", Left = 190, Width = 75, Top = 70, DialogResult = DialogResult.OK };
-            var cancel = new System.Windows.Forms.Button() { Text = "Cancel", Left = 280, Width = 75, Top = 70, DialogResult = DialogResult.Cancel };
-            f.Controls.AddRange(new Control[] { lbl, tb, ok, cancel });
-            f.AcceptButton = ok; f.CancelButton = cancel;
-
-            return f.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
-        }
-
         #endregion
 
         #region (Optional) ToolTips if kept in code-behind
@@ -538,28 +518,34 @@ namespace FileContentToolkit
 
         private void BtnRecreateFiles_Click(object sender, EventArgs e)
         {
-            using (var folderDialog = new FolderBrowserDialog())
+            using var folderDialog = new FolderBrowserDialog
             {
-                folderDialog.Description = "Select a folder to recreate files in";
-                if (folderDialog.ShowDialog() == DialogResult.OK)
-                {
-                    string baseFolder = folderDialog.SelectedPath;
-                    try
-                    {
-                        int count = FileRecreator.RecreateFilesFromOutput(
-                            rtbOutput.Text,
-                            baseFolder,
-                            fileService.FolderPath);
+                Description = "Select a folder to recreate files in"
+            };
+            if (folderDialog.ShowDialog() != DialogResult.OK) return;
 
-                        MessageBox.Show($"{count} file(s) created successfully.",
-                            "Recreate Files", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Error: " + ex.Message,
-                            "Recreate Files", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+            try
+            {
+                var plans = FileRecreator.Plan(rtbOutput.Text, folderDialog.SelectedPath);
+                if (plans.Count == 0)
+                {
+                    MessageBox.Show(this,
+                        "No file headers found in the output. Generate first, then try again.",
+                        "Recreate Files", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
                 }
+
+                using var dlg = new FileContentToolkit.Dialogs.DiffViewerForm(plans);
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+                int count = FileRecreator.Execute(dlg.ApprovedPlans);
+                MessageBox.Show(this, $"{count} file(s) written successfully.",
+                    "Recreate Files", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Error: " + ex.Message,
+                    "Recreate Files", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -713,11 +699,15 @@ namespace FileContentToolkit
             progressBar.Visible = true;
             progressBar.Value = 0;
             btnRefreshExtensions.Enabled = false;
+            sbScanStatus.Text = "Scanning…";
 
             var progress = new Progress<int>(p =>
             {
                 if (!ct.IsCancellationRequested && !progressBar.IsDisposed)
+                {
                     progressBar.Value = Math.Min(100, Math.Max(0, p));
+                    sbScanStatus.Text = $"Scanning… {progressBar.Value}%";
+                }
             });
 
             try
@@ -738,6 +728,7 @@ namespace FileContentToolkit
 
                 progressBar.Visible = false;
                 btnRefreshExtensions.Enabled = true;
+                sbScanStatus.Text = ct.IsCancellationRequested ? "Scan cancelled" : "Scan complete";
                 _scanCts = null;
                 cts.Dispose();
             }
@@ -791,14 +782,33 @@ namespace FileContentToolkit
 
             try
             {
-                // Read all files and assemble the output on a worker thread; remember header offsets
-                // so we can apply styling in one pass on the UI thread.
+                // Read files in PARALLEL into an indexed buffer, then assemble the output
+                // sequentially so order matches the user's file list. Order matters for headers,
+                // RTF styling offsets, and what the user sees in the output pane.
                 var service = fileService;
-                var built = await Task.Run(() =>
+                var built = await Task.Run(async () =>
                 {
+                    var contents = new string[files.Count];
+
+                    int dop = Math.Min(Math.Max(2, Environment.ProcessorCount), 16);
+                    await Parallel.ForEachAsync(
+                        Enumerable.Range(0, files.Count),
+                        new ParallelOptions { MaxDegreeOfParallelism = dop },
+                        (i, _) =>
+                        {
+                            try
+                            {
+                                contents[i] = service.ReadFileText(files[i], encoding);
+                            }
+                            catch (Exception ex)
+                            {
+                                contents[i] = $"[Error reading file: {ex.Message}]";
+                            }
+                            return ValueTask.CompletedTask;
+                        });
+
                     var sb = new StringBuilder();
                     var offsets = new List<(int Start, int Length)>(files.Count);
-
                     for (int i = 0; i < files.Count; i++)
                     {
                         var path = files[i];
@@ -806,20 +816,10 @@ namespace FileContentToolkit
                         offsets.Add((sb.Length, header.Length));
                         sb.Append(header);
                         sb.Append('\n');
-
-                        try
-                        {
-                            sb.Append(service.ReadFileText(path, encoding));
-                        }
-                        catch (Exception ex)
-                        {
-                            sb.Append($"[Error reading file: {ex.Message}]");
-                        }
-
+                        sb.Append(contents[i]);
                         if (i < files.Count - 1)
                             sb.Append("\n\n\n\n");
                     }
-
                     return (Text: sb.ToString(), Offsets: offsets);
                 });
 
@@ -913,6 +913,31 @@ namespace FileContentToolkit
             lblFileCount.Text = $"Files: {fileService.SelectedFiles.Count}";
             chkIncludeSubfolders.Checked = fileService.IncludeSubfolders;
             txtIgnorePatterns.Text = string.Join(", ", fileService.IgnorePatterns); // New
+
+            UpdateStatusBar();
+        }
+
+        private void UpdateStatusBar()
+        {
+            sbFileCount.Text = $"Files: {fileService.SelectedFiles.Count:N0}";
+
+            long total = 0;
+            foreach (var f in fileService.SelectedFiles)
+            {
+                try { total += new System.IO.FileInfo(f).Length; }
+                catch { /* skip unreadable */ }
+            }
+            sbTotalSize.Text = $"Size: {FormatBytes(total)}";
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            if (bytes < 1024) return $"{bytes} B";
+            string[] units = { "KB", "MB", "GB", "TB" };
+            double size = bytes / 1024.0;
+            int unit = 0;
+            while (size >= 1024 && unit < units.Length - 1) { size /= 1024; unit++; }
+            return $"{size:0.##} {units[unit]}";
         }
 
         private void ShowExtensionCounts(bool onlyConfigured)
@@ -955,32 +980,182 @@ namespace FileContentToolkit
 
         #endregion
 
+        // -------------------- Drag-and-drop on lstFiles --------------------
+        // Two roles: external FileDrop (add new files) AND internal reorder (move within the list).
+
+        private const string ReorderFormat = "FCTKitFileReorder";
+
         private void LstFiles_DragEnter(object sender, DragEventArgs e)
         {
-            // Check if the data being dragged is a file
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
+            if (e.Data.GetDataPresent(ReorderFormat))
+                e.Effect = DragDropEffects.Move;
+            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
                 e.Effect = DragDropEffects.Copy;
-            }
             else
-            {
                 e.Effect = DragDropEffects.None;
-            }
+        }
+
+        private void LstFiles_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(ReorderFormat))
+                e.Effect = DragDropEffects.Move;
+            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                e.Effect = DragDropEffects.Copy;
+            else
+                e.Effect = DragDropEffects.None;
         }
 
         private void LstFiles_DragDrop(object sender, DragEventArgs e)
         {
-            // Retrieve the array of file/folder paths
-            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-
-            if (files != null && files.Length > 0)
+            if (e.Data.GetDataPresent(ReorderFormat))
             {
-                // Add the files to the service
-                fileService.AddFiles(files);
+                var sources = (int[])e.Data.GetData(ReorderFormat);
+                if (sources == null || sources.Length == 0) return;
 
-                // Update the UI to reflect new files
+                var clientPt = lstFiles.PointToClient(new Point(e.X, e.Y));
+                int targetIndex = lstFiles.IndexFromPoint(clientPt);
+                var list = fileService.SelectedFiles;
+                if (targetIndex < 0) targetIndex = list.Count;
+
+                ReorderSelectedFiles(sources, targetIndex);
                 SyncUIWithService();
+
+                // Reselect the moved items at their new positions
+                lstFiles.BeginUpdate();
+                try
+                {
+                    lstFiles.ClearSelected();
+                    var movedSet = new HashSet<string>(
+                        sources.Where(i => i >= 0 && i < list.Count + sources.Length)
+                               .Select(_ => "")); // placeholder; we'll reselect by new index below
+                }
+                finally { lstFiles.EndUpdate(); }
+                return;
             }
+
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                if (files != null && files.Length > 0)
+                {
+                    fileService.AddFiles(files);
+                    SyncUIWithService();
+                }
+            }
+        }
+
+        private void ReorderSelectedFiles(int[] sourceIndices, int targetIndex)
+        {
+            var list = fileService.SelectedFiles;
+            // Snapshot moved items in their selected order
+            var moved = sourceIndices
+                .Where(i => i >= 0 && i < list.Count)
+                .OrderBy(i => i)
+                .Select(i => list[i])
+                .ToList();
+
+            // Adjust target so it points to the insertion slot AFTER we remove the moved items
+            int removedBefore = sourceIndices.Count(i => i >= 0 && i < targetIndex);
+            int insertAt = Math.Max(0, targetIndex - removedBefore);
+
+            // Remove in reverse to keep indices valid
+            foreach (var i in sourceIndices.Where(i => i >= 0 && i < list.Count).OrderByDescending(i => i))
+                list.RemoveAt(i);
+
+            if (insertAt > list.Count) insertAt = list.Count;
+            list.InsertRange(insertAt, moved);
+        }
+
+        private void LstFiles_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left) return;
+            int idx = lstFiles.IndexFromPoint(e.Location);
+            if (idx < 0) return;
+
+            // Click on a non-selected row should select it before any drag starts.
+            if (!lstFiles.SelectedIndices.Contains(idx))
+            {
+                lstFiles.ClearSelected();
+                lstFiles.SetSelected(idx, true);
+            }
+        }
+
+        private void LstFiles_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left) return;
+            if (lstFiles.SelectedIndices.Count == 0) return;
+            var indices = lstFiles.SelectedIndices.Cast<int>().ToArray();
+            var data = new DataObject(ReorderFormat, indices);
+            lstFiles.DoDragDrop(data, DragDropEffects.Move);
+        }
+
+        // -------------------- Right-click context menu actions --------------------
+
+        private IEnumerable<string> SelectedFullPaths()
+        {
+            var list = fileService.SelectedFiles;
+            foreach (int idx in lstFiles.SelectedIndices)
+                if (idx >= 0 && idx < list.Count) yield return list[idx];
+        }
+
+        private void MiOpenFile_Click(object sender, EventArgs e)
+        {
+            foreach (var path in SelectedFullPaths().Take(10)) // hard cap to avoid opening hundreds
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = path,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Could not open '{path}':\n{ex.Message}", "Open file",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+        }
+
+        private void MiRevealInExplorer_Click(object sender, EventArgs e)
+        {
+            foreach (var path in SelectedFullPaths().Take(10))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
+                }
+                catch { /* ignore */ }
+            }
+        }
+
+        private void MiOpenContainingFolder_Click(object sender, EventArgs e)
+        {
+            var folders = SelectedFullPaths()
+                .Select(p => System.IO.Path.GetDirectoryName(p))
+                .Where(d => !string.IsNullOrEmpty(d))
+                .Distinct()
+                .Take(5);
+            foreach (var folder in folders)
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = folder!,
+                        UseShellExecute = true
+                    });
+                }
+                catch { /* ignore */ }
+            }
+        }
+
+        private void MiCopyPath_Click(object sender, EventArgs e)
+        {
+            var joined = string.Join(Environment.NewLine, SelectedFullPaths());
+            if (!string.IsNullOrEmpty(joined))
+                Clipboard.SetText(joined);
         }
     }
 }

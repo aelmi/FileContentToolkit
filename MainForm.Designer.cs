@@ -44,6 +44,11 @@ namespace FileContentToolkit
         private System.Windows.Forms.ContextMenuStrip ctxFiles;
         private System.Windows.Forms.ToolStripMenuItem miSortByName;
         private System.Windows.Forms.ToolStripMenuItem miSortByExtension;
+        private System.Windows.Forms.ToolStripSeparator miFilesSep1;
+        private System.Windows.Forms.ToolStripMenuItem miOpenFile;
+        private System.Windows.Forms.ToolStripMenuItem miRevealInExplorer;
+        private System.Windows.Forms.ToolStripMenuItem miCopyPath;
+        private System.Windows.Forms.ToolStripMenuItem miOpenContainingFolder;
         private System.Windows.Forms.Panel pnlOutput;
         private System.Windows.Forms.Button btnExportOutput;
         private System.Windows.Forms.Panel pnlOutputHeader;
@@ -83,10 +88,21 @@ namespace FileContentToolkit
 
         // --- main menu strip ---
         private System.Windows.Forms.MenuStrip menuMain;
+        private System.Windows.Forms.ToolStripMenuItem mnuView;
+        private System.Windows.Forms.ToolStripMenuItem mnuViewDarkMode;
         private System.Windows.Forms.ToolStripMenuItem mnuHelp;
         private System.Windows.Forms.ToolStripMenuItem mnuHelpShortcuts;
         private System.Windows.Forms.ToolStripSeparator mnuHelpSep1;
         private System.Windows.Forms.ToolStripMenuItem mnuHelpAbout;
+        private System.Windows.Forms.ToolStripMenuItem mnuHelpCheckUpdates;
+
+        // --- status bar ---
+        private System.Windows.Forms.StatusStrip statusBar;
+        private System.Windows.Forms.ToolStripStatusLabel sbFileCount;
+        private System.Windows.Forms.ToolStripStatusLabel sbTotalSize;
+        private System.Windows.Forms.ToolStripStatusLabel sbSpring;
+        private System.Windows.Forms.ToolStripStatusLabel sbScanStatus;
+        private System.Windows.Forms.ToolStripStatusLabel sbUpdateNotice;
 
         protected override void Dispose(bool disposing)
         {
@@ -124,16 +140,16 @@ namespace FileContentToolkit
             chkRegex = new CheckBox();
             btnFindReplace = new Button();
             lblSearchMatches = new Label();
-            menuMain = new MenuStrip();
-            mnuHelp = new ToolStripMenuItem();
-            mnuHelpShortcuts = new ToolStripMenuItem();
-            mnuHelpSep1 = new ToolStripSeparator();
-            mnuHelpAbout = new ToolStripMenuItem();
             lblSearchFiles = new Label();
             lstFiles = new ListBox();
             ctxFiles = new ContextMenuStrip(components);
             miSortByName = new ToolStripMenuItem();
             miSortByExtension = new ToolStripMenuItem();
+            miFilesSep1 = new ToolStripSeparator();
+            miOpenFile = new ToolStripMenuItem();
+            miRevealInExplorer = new ToolStripMenuItem();
+            miCopyPath = new ToolStripMenuItem();
+            miOpenContainingFolder = new ToolStripMenuItem();
             pnlFileButtons = new Panel();
             lblFileCount = new Label();
             btnAddMultipleFiles = new Button();
@@ -152,6 +168,20 @@ namespace FileContentToolkit
             btnRemove = new Button();
             chkIncludeSubfolders = new CheckBox();
             btnRefreshExtensions = new Button();
+            menuMain = new MenuStrip();
+            mnuView = new ToolStripMenuItem();
+            mnuViewDarkMode = new ToolStripMenuItem();
+            mnuHelp = new ToolStripMenuItem();
+            mnuHelpShortcuts = new ToolStripMenuItem();
+            mnuHelpSep1 = new ToolStripSeparator();
+            mnuHelpAbout = new ToolStripMenuItem();
+            mnuHelpCheckUpdates = new ToolStripMenuItem();
+            statusBar = new StatusStrip();
+            sbFileCount = new ToolStripStatusLabel();
+            sbTotalSize = new ToolStripStatusLabel();
+            sbSpring = new ToolStripStatusLabel();
+            sbScanStatus = new ToolStripStatusLabel();
+            sbUpdateNotice = new ToolStripStatusLabel();
             pnlBottom = new Panel();
             progressBar = new ProgressBar();
             btnGenerate = new Button();
@@ -176,7 +206,6 @@ namespace FileContentToolkit
             lblCompression = new Label();
             pnlSeparator = new Panel();
             toolTip1 = new ToolTip(components);
-            menuMain.SuspendLayout();
             pnlTop.SuspendLayout();
             pnlLeft.SuspendLayout();
             grpFiles.SuspendLayout();
@@ -184,6 +213,8 @@ namespace FileContentToolkit
             pnlFileButtons.SuspendLayout();
             grpExtensions.SuspendLayout();
             cmsAddDropdown.SuspendLayout();
+            menuMain.SuspendLayout();
+            statusBar.SuspendLayout();
             pnlBottom.SuspendLayout();
             pnlRight.SuspendLayout();
             pnlRecreateInfo.SuspendLayout();
@@ -208,7 +239,7 @@ namespace FileContentToolkit
             pnlTop.Controls.Add(btnLoadPreset);
             pnlTop.Controls.Add(chkWatch);
             pnlTop.Dock = DockStyle.Top;
-            pnlTop.Location = new Point(0, 0);
+            pnlTop.Location = new Point(0, 33);
             pnlTop.Name = "pnlTop";
             pnlTop.Padding = new Padding(20, 20, 20, 10);
             pnlTop.Size = new Size(1640, 165);
@@ -384,10 +415,10 @@ namespace FileContentToolkit
             pnlLeft.Controls.Add(grpFiles);
             pnlLeft.Controls.Add(grpExtensions);
             pnlLeft.Dock = DockStyle.Left;
-            pnlLeft.Location = new Point(0, 165);
+            pnlLeft.Location = new Point(0, 198);
             pnlLeft.Name = "pnlLeft";
             pnlLeft.Padding = new Padding(20);
-            pnlLeft.Size = new Size(497, 945);
+            pnlLeft.Size = new Size(497, 912);
             pnlLeft.TabIndex = 1;
             // 
             // grpFiles
@@ -407,10 +438,10 @@ namespace FileContentToolkit
             grpFiles.Dock = DockStyle.Fill;
             grpFiles.Font = new Font("Segoe UI", 10F);
             grpFiles.ForeColor = Color.FromArgb(0, 102, 204);
-            grpFiles.Location = new Point(20, 480);
+            grpFiles.Location = new Point(20, 410);
             grpFiles.Name = "grpFiles";
             grpFiles.Padding = new Padding(10);
-            grpFiles.Size = new Size(457, 445);
+            grpFiles.Size = new Size(457, 482);
             grpFiles.TabIndex = 1;
             grpFiles.TabStop = false;
             grpFiles.Text = "Selected Files";
@@ -541,16 +572,19 @@ namespace FileContentToolkit
             lstFiles.Location = new Point(10, 170);
             lstFiles.Name = "lstFiles";
             lstFiles.SelectionMode = SelectionMode.MultiExtended;
-            lstFiles.Size = new Size(437, 179);
+            lstFiles.Size = new Size(437, 229);
             lstFiles.TabIndex = 0;
             lstFiles.DragDrop += LstFiles_DragDrop;
             lstFiles.DragEnter += LstFiles_DragEnter;
+            lstFiles.DragOver += LstFiles_DragOver;
+            lstFiles.MouseDown += LstFiles_MouseDown;
+            lstFiles.MouseMove += LstFiles_MouseMove;
             lstFiles.KeyDown += LstFiles_KeyDown;
             // 
             // ctxFiles
             // 
             ctxFiles.ImageScalingSize = new Size(24, 24);
-            ctxFiles.Items.AddRange(new ToolStripItem[] { miSortByName, miSortByExtension });
+            ctxFiles.Items.AddRange(new ToolStripItem[] { miOpenFile, miRevealInExplorer, miOpenContainingFolder, miCopyPath, miFilesSep1, miSortByName, miSortByExtension });
             ctxFiles.Name = "ctxFiles";
             ctxFiles.Size = new Size(223, 68);
             // 
@@ -567,6 +601,38 @@ namespace FileContentToolkit
             miSortByExtension.Size = new Size(222, 32);
             miSortByExtension.Text = "Sort by Extension";
             miSortByExtension.Click += MiSortByExtension_Click;
+            //
+            // miOpenFile
+            //
+            miOpenFile.Name = "miOpenFile";
+            miOpenFile.Size = new Size(252, 32);
+            miOpenFile.Text = "Open";
+            miOpenFile.Click += MiOpenFile_Click;
+            //
+            // miRevealInExplorer
+            //
+            miRevealInExplorer.Name = "miRevealInExplorer";
+            miRevealInExplorer.Size = new Size(252, 32);
+            miRevealInExplorer.Text = "Reveal in Explorer";
+            miRevealInExplorer.Click += MiRevealInExplorer_Click;
+            //
+            // miOpenContainingFolder
+            //
+            miOpenContainingFolder.Name = "miOpenContainingFolder";
+            miOpenContainingFolder.Size = new Size(252, 32);
+            miOpenContainingFolder.Text = "Open containing folder";
+            miOpenContainingFolder.Click += MiOpenContainingFolder_Click;
+            //
+            // miCopyPath
+            //
+            miCopyPath.Name = "miCopyPath";
+            miCopyPath.Size = new Size(252, 32);
+            miCopyPath.Text = "Copy path";
+            miCopyPath.Click += MiCopyPath_Click;
+            //
+            // miFilesSep1
+            //
+            miFilesSep1.Name = "miFilesSep1";
             // 
             // pnlFileButtons
             // 
@@ -576,7 +642,7 @@ namespace FileContentToolkit
             pnlFileButtons.Controls.Add(btnMoveUp);
             pnlFileButtons.Controls.Add(btnMoveDown);
             pnlFileButtons.Dock = DockStyle.Bottom;
-            pnlFileButtons.Location = new Point(10, 387);
+            pnlFileButtons.Location = new Point(10, 424);
             pnlFileButtons.Name = "pnlFileButtons";
             pnlFileButtons.Size = new Size(437, 48);
             pnlFileButtons.TabIndex = 1;
@@ -670,7 +736,7 @@ namespace FileContentToolkit
             grpExtensions.Location = new Point(20, 20);
             grpExtensions.Name = "grpExtensions";
             grpExtensions.Padding = new Padding(10);
-            grpExtensions.Size = new Size(457, 460);
+            grpExtensions.Size = new Size(457, 390);
             grpExtensions.TabIndex = 0;
             grpExtensions.TabStop = false;
             grpExtensions.Text = "File Extensions";
@@ -678,7 +744,7 @@ namespace FileContentToolkit
             // txtIgnorePatterns
             // 
             txtIgnorePatterns.BorderStyle = BorderStyle.FixedSingle;
-            txtIgnorePatterns.Location = new Point(10, 410);
+            txtIgnorePatterns.Location = new Point(10, 340);
             txtIgnorePatterns.Name = "txtIgnorePatterns";
             txtIgnorePatterns.Size = new Size(430, 34);
             txtIgnorePatterns.TabIndex = 7;
@@ -688,7 +754,7 @@ namespace FileContentToolkit
             // 
             lblIgnorePatterns.AutoSize = true;
             lblIgnorePatterns.Font = new Font("Segoe UI", 9F);
-            lblIgnorePatterns.Location = new Point(10, 382);
+            lblIgnorePatterns.Location = new Point(10, 312);
             lblIgnorePatterns.Name = "lblIgnorePatterns";
             lblIgnorePatterns.Size = new Size(136, 25);
             lblIgnorePatterns.TabIndex = 6;
@@ -749,7 +815,7 @@ namespace FileContentToolkit
             lstExtensions.ItemHeight = 28;
             lstExtensions.Location = new Point(10, 105);
             lstExtensions.Name = "lstExtensions";
-            lstExtensions.Size = new Size(249, 228);
+            lstExtensions.Size = new Size(249, 144);
             lstExtensions.TabIndex = 3;
             // 
             // btnRemove
@@ -771,7 +837,7 @@ namespace FileContentToolkit
             chkIncludeSubfolders.AutoSize = true;
             chkIncludeSubfolders.Checked = true;
             chkIncludeSubfolders.CheckState = CheckState.Checked;
-            chkIncludeSubfolders.Location = new Point(10, 345);
+            chkIncludeSubfolders.Location = new Point(10, 275);
             chkIncludeSubfolders.Name = "chkIncludeSubfolders";
             chkIncludeSubfolders.Size = new Size(209, 32);
             chkIncludeSubfolders.TabIndex = 5;
@@ -793,8 +859,117 @@ namespace FileContentToolkit
             btnRefreshExtensions.UseVisualStyleBackColor = false;
             btnRefreshExtensions.Click += BtnRefreshExtensions_Click;
             // 
-            // pnlBottom
+            // menuMain
             // 
+            menuMain.BackColor = Color.FromArgb(245, 247, 250);
+            menuMain.Font = new Font("Segoe UI", 9.5F);
+            menuMain.ImageScalingSize = new Size(20, 20);
+            menuMain.Items.AddRange(new ToolStripItem[] { mnuView, mnuHelp });
+            menuMain.Location = new Point(0, 0);
+            menuMain.Name = "menuMain";
+            menuMain.Size = new Size(1640, 33);
+            menuMain.TabIndex = 11;
+            // 
+            // mnuHelp
+            // 
+            mnuHelp.DropDownItems.AddRange(new ToolStripItem[] { mnuHelpShortcuts, mnuHelpCheckUpdates, mnuHelpSep1, mnuHelpAbout });
+            mnuHelp.Name = "mnuHelp";
+            mnuHelp.Size = new Size(67, 29);
+            mnuHelp.Text = "&Help";
+            //
+            // mnuView
+            //
+            mnuView.DropDownItems.AddRange(new ToolStripItem[] { mnuViewDarkMode });
+            mnuView.Name = "mnuView";
+            mnuView.Size = new Size(60, 29);
+            mnuView.Text = "&View";
+            //
+            // mnuViewDarkMode
+            //
+            mnuViewDarkMode.CheckOnClick = true;
+            mnuViewDarkMode.Name = "mnuViewDarkMode";
+            mnuViewDarkMode.Size = new Size(220, 34);
+            mnuViewDarkMode.Text = "&Dark mode";
+            mnuViewDarkMode.CheckedChanged += MnuViewDarkMode_CheckedChanged;
+            // 
+            // mnuHelpShortcuts
+            // 
+            mnuHelpShortcuts.Name = "mnuHelpShortcuts";
+            mnuHelpShortcuts.ShortcutKeys = Keys.F1;
+            mnuHelpShortcuts.Size = new Size(323, 34);
+            mnuHelpShortcuts.Text = "&Keyboard Shortcuts…";
+            mnuHelpShortcuts.Click += MnuHelpShortcuts_Click;
+            // 
+            // mnuHelpSep1
+            // 
+            mnuHelpSep1.Name = "mnuHelpSep1";
+            mnuHelpSep1.Size = new Size(320, 6);
+            // 
+            // mnuHelpAbout
+            // 
+            mnuHelpAbout.Name = "mnuHelpAbout";
+            mnuHelpAbout.Size = new Size(323, 34);
+            mnuHelpAbout.Text = "&About…";
+            mnuHelpAbout.Click += MnuHelpAbout_Click;
+            //
+            // mnuHelpCheckUpdates
+            //
+            mnuHelpCheckUpdates.Name = "mnuHelpCheckUpdates";
+            mnuHelpCheckUpdates.Size = new Size(323, 34);
+            mnuHelpCheckUpdates.Text = "Check for &updates…";
+            mnuHelpCheckUpdates.Click += MnuHelpCheckUpdates_Click;
+            //
+            // statusBar
+            //
+            statusBar.BackColor = Color.FromArgb(233, 236, 239);
+            statusBar.Font = new Font("Segoe UI", 9F);
+            statusBar.ImageScalingSize = new Size(20, 20);
+            statusBar.Items.AddRange(new ToolStripItem[] { sbFileCount, sbTotalSize, sbSpring, sbScanStatus, sbUpdateNotice });
+            statusBar.Name = "statusBar";
+            statusBar.Padding = new Padding(8, 2, 8, 2);
+            statusBar.SizingGrip = false;
+            //
+            // sbFileCount
+            //
+            sbFileCount.Name = "sbFileCount";
+            sbFileCount.ForeColor = Color.FromArgb(33, 37, 41);
+            sbFileCount.Text = "Files: 0";
+            sbFileCount.AutoSize = true;
+            //
+            // sbTotalSize
+            //
+            sbTotalSize.Name = "sbTotalSize";
+            sbTotalSize.ForeColor = Color.FromArgb(33, 37, 41);
+            sbTotalSize.Text = "Size: 0 B";
+            sbTotalSize.AutoSize = true;
+            sbTotalSize.Margin = new Padding(20, 3, 0, 2);
+            //
+            // sbSpring (spacer)
+            //
+            sbSpring.Name = "sbSpring";
+            sbSpring.Spring = true;
+            sbSpring.Text = "";
+            //
+            // sbScanStatus
+            //
+            sbScanStatus.Name = "sbScanStatus";
+            sbScanStatus.ForeColor = Color.FromArgb(108, 117, 125);
+            sbScanStatus.Text = "";
+            sbScanStatus.AutoSize = true;
+            //
+            // sbUpdateNotice
+            //
+            sbUpdateNotice.Name = "sbUpdateNotice";
+            sbUpdateNotice.ForeColor = Color.FromArgb(13, 110, 253);
+            sbUpdateNotice.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            sbUpdateNotice.IsLink = true;
+            sbUpdateNotice.Text = "";
+            sbUpdateNotice.Visible = false;
+            sbUpdateNotice.Margin = new Padding(20, 3, 0, 2);
+            sbUpdateNotice.Click += SbUpdateNotice_Click;
+            //
+            // pnlBottom
+            //
             pnlBottom.BackColor = Color.FromArgb(245, 247, 250);
             pnlBottom.Controls.Add(progressBar);
             pnlBottom.Controls.Add(btnGenerate);
@@ -835,10 +1010,10 @@ namespace FileContentToolkit
             pnlRight.Controls.Add(pnlRecreateInfo);
             pnlRight.Controls.Add(pnlOutput);
             pnlRight.Dock = DockStyle.Fill;
-            pnlRight.Location = new Point(497, 165);
+            pnlRight.Location = new Point(497, 198);
             pnlRight.Name = "pnlRight";
             pnlRight.Padding = new Padding(20);
-            pnlRight.Size = new Size(1143, 945);
+            pnlRight.Size = new Size(1143, 912);
             pnlRight.TabIndex = 2;
             // 
             // rtbOutput
@@ -849,7 +1024,7 @@ namespace FileContentToolkit
             rtbOutput.Location = new Point(20, 240);
             rtbOutput.Name = "rtbOutput";
             rtbOutput.ReadOnly = true;
-            rtbOutput.Size = new Size(1103, 685);
+            rtbOutput.Size = new Size(1103, 652);
             rtbOutput.TabIndex = 1;
             rtbOutput.Text = "";
             rtbOutput.WordWrap = false;
@@ -1089,48 +1264,9 @@ namespace FileContentToolkit
             pnlSeparator.Name = "pnlSeparator";
             pnlSeparator.Size = new Size(1103, 1);
             pnlSeparator.TabIndex = 1;
-            //
-            // menuMain
-            //
-            menuMain.BackColor = Color.FromArgb(245, 247, 250);
-            menuMain.Font = new Font("Segoe UI", 9.5F);
-            menuMain.ImageScalingSize = new Size(20, 20);
-            menuMain.Items.AddRange(new ToolStripItem[] { mnuHelp });
-            menuMain.Location = new Point(0, 0);
-            menuMain.Name = "menuMain";
-            menuMain.Padding = new Padding(6, 2, 0, 2);
-            menuMain.Size = new Size(1640, 28);
-            menuMain.TabIndex = 11;
-            //
-            // mnuHelp
-            //
-            mnuHelp.DropDownItems.AddRange(new ToolStripItem[] { mnuHelpShortcuts, mnuHelpSep1, mnuHelpAbout });
-            mnuHelp.Name = "mnuHelp";
-            mnuHelp.Size = new Size(56, 24);
-            mnuHelp.Text = "&Help";
-            //
-            // mnuHelpShortcuts
-            //
-            mnuHelpShortcuts.Name = "mnuHelpShortcuts";
-            mnuHelpShortcuts.ShortcutKeys = Keys.F1;
-            mnuHelpShortcuts.Size = new Size(220, 26);
-            mnuHelpShortcuts.Text = "&Keyboard Shortcuts…";
-            mnuHelpShortcuts.Click += MnuHelpShortcuts_Click;
-            //
-            // mnuHelpSep1
-            //
-            mnuHelpSep1.Name = "mnuHelpSep1";
-            mnuHelpSep1.Size = new Size(217, 6);
-            //
-            // mnuHelpAbout
-            //
-            mnuHelpAbout.Name = "mnuHelpAbout";
-            mnuHelpAbout.Size = new Size(220, 26);
-            mnuHelpAbout.Text = "&About…";
-            mnuHelpAbout.Click += MnuHelpAbout_Click;
-            //
+            // 
             // MainForm
-            //
+            // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.FromArgb(245, 247, 250);
@@ -1140,13 +1276,12 @@ namespace FileContentToolkit
             Controls.Add(pnlBottom);
             Controls.Add(pnlTop);
             Controls.Add(menuMain);
+            Controls.Add(statusBar);
             MainMenuStrip = menuMain;
             MinimumSize = new Size(1315, 1087);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "File Content Toolkit";
-            menuMain.ResumeLayout(false);
-            menuMain.PerformLayout();
             pnlTop.ResumeLayout(false);
             pnlTop.PerformLayout();
             pnlLeft.ResumeLayout(false);
@@ -1158,6 +1293,10 @@ namespace FileContentToolkit
             grpExtensions.ResumeLayout(false);
             grpExtensions.PerformLayout();
             cmsAddDropdown.ResumeLayout(false);
+            menuMain.ResumeLayout(false);
+            menuMain.PerformLayout();
+            statusBar.ResumeLayout(false);
+            statusBar.PerformLayout();
             pnlBottom.ResumeLayout(false);
             pnlRight.ResumeLayout(false);
             pnlRecreateInfo.ResumeLayout(false);
@@ -1169,6 +1308,7 @@ namespace FileContentToolkit
             pnlCompressionTools.ResumeLayout(false);
             pnlCompressionTools.PerformLayout();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion

@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using FileContentToolkit.Diagnostics;
 using FileContentToolkit.Dialogs;
 using FileContentToolkit.Settings;
 using FileContentToolkit.UI;
@@ -22,6 +23,7 @@ namespace FileContentToolkit
         private AppSettings _settings = AppSettings.Load();
         private readonly FolderWatcher _folderWatcher = new();
         private FindReplaceForm? _findReplaceForm;
+        private UpdateInfo? _latestUpdate;
 
         private void InitExtraFeatures()
         {
@@ -75,6 +77,69 @@ namespace FileContentToolkit
                 _settings.Save();
                 _folderWatcher.Dispose();
             };
+
+            // Apply saved dark-mode preference (the menu CheckedChanged will fire and re-apply
+            // through MnuViewDarkMode_CheckedChanged — that's the single code path).
+            mnuViewDarkMode.Checked = _settings.DarkMode;
+            if (_settings.DarkMode) Theme.Apply(this, true);
+
+            // Background update check (non-blocking; never throws).
+            _ = CheckForUpdatesAsync(silentIfNone: true);
+        }
+
+        private void MnuViewDarkMode_CheckedChanged(object? sender, EventArgs e)
+        {
+            _settings.DarkMode = mnuViewDarkMode.Checked;
+            Theme.Apply(this, mnuViewDarkMode.Checked);
+            _settings.Save();
+        }
+
+        private async Task CheckForUpdatesAsync(bool silentIfNone)
+        {
+            var info = await UpdateChecker.CheckAsync();
+            _latestUpdate = info;
+
+            if (IsDisposed) return;
+
+            if (info?.UpdateAvailable == true)
+            {
+                BeginInvoke(new Action(() =>
+                {
+                    sbUpdateNotice.Text = $"Update available — {info.TagName}";
+                    sbUpdateNotice.ToolTipText = info.HtmlUrl;
+                    sbUpdateNotice.Visible = true;
+                }));
+            }
+            else if (!silentIfNone)
+            {
+                BeginInvoke(new Action(() =>
+                {
+                    var msg = info == null
+                        ? "Could not contact GitHub. Try again later."
+                        : $"You're up to date.\nLatest release: {info.TagName}\nCurrent: {info.Current}";
+                    MessageBox.Show(this, msg, "Check for updates",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }));
+            }
+        }
+
+        private void MnuHelpCheckUpdates_Click(object? sender, EventArgs e)
+        {
+            _ = CheckForUpdatesAsync(silentIfNone: false);
+        }
+
+        private void SbUpdateNotice_Click(object? sender, EventArgs e)
+        {
+            if (_latestUpdate == null || string.IsNullOrEmpty(_latestUpdate.HtmlUrl)) return;
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = _latestUpdate.HtmlUrl,
+                    UseShellExecute = true
+                });
+            }
+            catch { /* ignore */ }
         }
 
         private void ApplySettingsToService()

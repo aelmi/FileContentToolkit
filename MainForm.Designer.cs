@@ -13,6 +13,7 @@ namespace FileContentToolkit
         private System.Windows.Forms.Label lblPath;
         private System.Windows.Forms.TextBox txtFolderPath;
         private System.Windows.Forms.Button btnBrowse;
+        private System.Windows.Forms.Button btnAddFolder;
         private System.Windows.Forms.Panel pnlLeft;
         private System.Windows.Forms.GroupBox grpFiles;
         private System.Windows.Forms.ListBox lstFiles;
@@ -220,6 +221,7 @@ namespace FileContentToolkit
             lblPath = new Label();
             txtFolderPath = new TextBox();
             btnBrowse = new Button();
+            btnAddFolder = new Button();
             btnTree = new Button();
             btnRecentFolders = new Button();
             btnOptions = new Button();
@@ -422,6 +424,7 @@ namespace FileContentToolkit
             pnlTop.Controls.Add(lblPath);
             pnlTop.Controls.Add(txtFolderPath);
             pnlTop.Controls.Add(btnBrowse);
+            pnlTop.Controls.Add(btnAddFolder);
             pnlTop.Controls.Add(btnTree);
             pnlTop.Controls.Add(btnRecentFolders);
             pnlTop.Controls.Add(btnOptions);
@@ -498,7 +501,25 @@ namespace FileContentToolkit
             toolTip1.SetToolTip(btnBrowse, "Browse for a folder");
             btnBrowse.UseVisualStyleBackColor = false;
             btnBrowse.Click += BtnBrowse_Click;
-            // 
+            //
+            // btnAddFolder
+            //
+            btnAddFolder.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnAddFolder.BackColor = Color.FromArgb(40, 167, 69);
+            btnAddFolder.Cursor = Cursors.Hand;
+            btnAddFolder.FlatAppearance.BorderSize = 0;
+            btnAddFolder.FlatStyle = FlatStyle.Flat;
+            btnAddFolder.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            btnAddFolder.ForeColor = Color.White;
+            btnAddFolder.Location = new Point(1280, 110);
+            btnAddFolder.Name = "btnAddFolder";
+            btnAddFolder.Size = new Size(140, 34);
+            btnAddFolder.TabIndex = 11;
+            btnAddFolder.Text = "+ Add Folder";
+            toolTip1.SetToolTip(btnAddFolder, "Scan another folder for the configured extensions and append its files to the list");
+            btnAddFolder.UseVisualStyleBackColor = false;
+            btnAddFolder.Click += BtnAddFolder_Click;
+            //
             // btnTree
             // 
             btnTree.BackColor = Color.FromArgb(51, 122, 183);
@@ -1132,6 +1153,7 @@ namespace FileContentToolkit
             lstExtensions.Location = new Point(10, 105);
             lstExtensions.Name = "lstExtensions";
             lstExtensions.Size = new Size(249, 172);
+            lstExtensions.SelectionMode = SelectionMode.MultiExtended;
             lstExtensions.TabIndex = 3;
             lstExtensions.KeyDown += LstExtensions_KeyDown;
             // 

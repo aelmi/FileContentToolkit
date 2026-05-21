@@ -84,7 +84,10 @@ namespace FileContentToolkit
         private void MnuLanguagePreset_Click(object? sender, EventArgs e)
         {
             if (sender is ToolStripMenuItem mi && mi.Tag is string[] exts)
+            {
+                fileService.Extensions.Clear();
                 BulkAddExtensions(exts);
+            }
         }
 
         private void BulkAddExtensions(string[] exts)
@@ -122,6 +125,7 @@ namespace FileContentToolkit
         private void SetupHoverEffects()
         {
             AddHoverEffect(btnBrowse, Color.FromArgb(51, 122, 183));
+            AddHoverEffect(btnAddFolder, Color.FromArgb(40, 167, 69));
             AddHoverEffect(btnAdd, Color.FromArgb(51, 122, 183));
             AddHoverEffect(btnRemove, Color.FromArgb(220, 53, 69));
             AddHoverEffect(btnAddMultipleFiles, Color.FromArgb(40, 167, 69));
@@ -231,6 +235,45 @@ namespace FileContentToolkit
                     _settings.AddRecentFolder(folderDialog.SelectedPath);
                     _settings.Save();
                 }
+            }
+        }
+
+        private void BtnAddFolder_Click(object sender, EventArgs e)
+        {
+            if (fileService.Extensions.Count == 0)
+            {
+                MessageBox.Show(
+                    "Add at least one file extension before adding a folder, so the scan knows which files to include.",
+                    "No Extensions Configured",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using (var folderDialog = new FolderBrowserDialog())
+            {
+                folderDialog.Description = "Select another folder — its matching files will be appended to the list";
+                if (folderDialog.ShowDialog() != DialogResult.OK) return;
+
+                var matches = fileService.EnumerateMatchingFiles(folderDialog.SelectedPath);
+                if (matches.Count == 0)
+                {
+                    MessageBox.Show(this,
+                        "No files in that folder matched the configured extensions and filters.",
+                        "Add Folder", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                int before = fileService.SelectedFiles.Count;
+                fileService.AddFiles(matches);
+                int added = fileService.SelectedFiles.Count - before;
+
+                _settings.AddRecentFolder(folderDialog.SelectedPath);
+                _settings.Save();
+
+                SyncUIWithService();
+
+                toolTip1.Show($"Added {added} file(s) from {folderDialog.SelectedPath}",
+                    btnAddFolder, 0, -24, 2500);
             }
         }
 
@@ -414,17 +457,23 @@ namespace FileContentToolkit
 
         private void BtnRemove_Click(object sender, EventArgs e)
         {
-            if (lstExtensions.SelectedIndex != -1)
+            if (lstExtensions.SelectedItems.Count == 0)
             {
-                string removedExtension = lstExtensions.SelectedItem.ToString();
-                fileService.RemoveExtension(removedExtension);
-                SyncUIWithService();
-            }
-            else
-            {
-                MessageBox.Show("Please select an extension to remove.", "Selection Required",
+                MessageBox.Show("Please select one or more extensions to remove.", "Selection Required",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
+
+            var toRemove = lstExtensions.SelectedItems
+                .Cast<object>()
+                .Select(o => o?.ToString())
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToList();
+
+            foreach (var ext in toRemove)
+                fileService.RemoveExtension(ext!);
+
+            SyncUIWithService();
             _ = RefreshFilesInBackground();
         }
 
@@ -600,7 +649,7 @@ namespace FileContentToolkit
 
         private void LstExtensions_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Delete && lstExtensions.SelectedIndex >= 0)
+            if (e.KeyCode == Keys.Delete && lstExtensions.SelectedItems.Count > 0)
             {
                 BtnRemove_Click(sender, e);
                 e.Handled = true;

@@ -110,25 +110,26 @@ namespace FileContentToolkit
         public void RefreshFiles()
         {
             SelectedFiles.Clear();
+            SelectedFiles.AddRange(EnumerateMatchingFiles(FolderPath));
+        }
 
-            if (string.IsNullOrEmpty(FolderPath) || !Directory.Exists(FolderPath) || Extensions.Count == 0)
-                return;
+        public List<string> EnumerateMatchingFiles(string folder)
+        {
+            if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder) || Extensions.Count == 0)
+                return new List<string>();
 
             var searchOption = IncludeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
             var extSet = new HashSet<string>(Extensions, StringComparer.OrdinalIgnoreCase);
             var patterns = IgnorePatterns.ToList();
-            var folder = FolderPath;
             var gitIgnore = UseGitIgnoreFiles ? GitIgnoreParser.FromFolder(folder) : new GitIgnoreParser();
             var maxBytes = MaxFileSizeBytes;
             var skipBinary = SkipBinaryFiles;
 
-            var files = Directory.EnumerateFiles(FolderPath, "*.*", searchOption)
+            return Directory.EnumerateFiles(folder, "*.*", searchOption)
                 .Where(file => extSet.Contains(Path.GetExtension(file)))
                 .Where(file => PassesAllFilters(file, folder, patterns, gitIgnore, maxBytes, skipBinary))
                 .OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-
-            SelectedFiles.AddRange(files);
         }
 
         public async Task RefreshFilesAsync(IProgress<int> progress, CancellationToken ct)

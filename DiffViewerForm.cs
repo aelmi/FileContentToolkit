@@ -70,8 +70,7 @@ namespace FileContentToolkit.Dialogs
             {
                 _plans[e.Index].Include = e.NewValue == CheckState.Checked;
             }
-            // BeginInvoke so the count reflects the new state after the check actually applies.
-            BeginInvoke(new Action(UpdateWriteHint));
+            UpdateWriteHint();
         }
 
         private void UpdateWriteHint()

@@ -306,22 +306,37 @@ namespace CodeShuttle
 
         #region Event Handlers (wired from Designer)
 
+        /// <summary>
+        /// Unlocks the output pane for typing, and locks it again.
+        /// </summary>
+        /// <remarks>
+        /// Works on an empty pane as well as on a generated pack, which is the point: typing or
+        /// pasting a bundle in by hand is how you decrypt or decompress one you did not generate
+        /// here. That requires taking down the "No pack yet" card, because it is painted over the
+        /// output box rather than instead of it — see <see cref="UpdateOutputPresence"/> for why
+        /// the box itself must never be hidden.
+        /// </remarks>
         private void BtnEditOutput_Click(object sender, EventArgs e)
         {
-            rtbOutput.ReadOnly = !rtbOutput.ReadOnly;
+            _editingOutput = !_editingOutput;
+            rtbOutput.ReadOnly = !_editingOutput;
 
-            if (rtbOutput.ReadOnly)
+            // Editing is a mode, and the button is the only thing that says so. The "on" look is
+            // painted in ApplyOutlineButtons from the accent wash — it used to borrow the warning
+            // banner's amber, which read as a caution about a state the user had deliberately
+            // chosen, and was the one orange left in a palette that is otherwise blue.
+            toolTip1.SetToolTip(btnEditOutput,
+                _editingOutput ? "Click to finish editing" : "Edit the output");
+            ApplyTheme();
+
+            // Shows or restores the empty state around the edit, and re-reads the protect buttons
+            // against whatever the user typed.
+            UpdateOutputPresence();
+
+            if (_editingOutput)
             {
-                ThemeRoles.Set(btnEditOutput, ThemeRole.ButtonSubtle);
-                ThemeManager.ApplyTo(this);
-                toolTip1.SetToolTip(btnEditOutput, "Edit the output");
-            }
-            else
-            {
-                // Editing is a mode, and the button is the only thing that says so.
-                ThemeRoles.Set(btnEditOutput, ThemeRole.Banner);
-                ThemeManager.ApplyTo(this);
-                toolTip1.SetToolTip(btnEditOutput, "Click to finish editing");
+                rtbOutput.Focus();
+                rtbOutput.SelectionStart = rtbOutput.TextLength;
             }
         }
 

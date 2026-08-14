@@ -192,8 +192,16 @@ namespace CodeShuttle.Tests
             });
         }
 
+        /// <summary>
+        /// Edit is never disabled, including on a cold start with nothing in the pane.
+        /// </summary>
+        /// <remarks>
+        /// It used to be gated on there already being a pack, which made the one control that can
+        /// *create* pane content depend on pane content already existing. Typing or pasting a
+        /// bundle in by hand is how you decrypt one you did not generate here.
+        /// </remarks>
         [Fact]
-        public void Edit_is_disabled_while_the_pane_is_empty()
+        public void Edit_is_enabled_even_with_an_empty_pane()
         {
             StaRunner.Run(() =>
             {
@@ -203,12 +211,77 @@ namespace CodeShuttle.Tests
                 {
                     var output = (RichTextBox)FindControl(form, "rtbOutput")!;
                     output.ReadOnly = false;
-
                     output.Text = string.Empty;
-                    Assert.False(FindControl(form, "btnEditOutput")!.Enabled);
 
-                    output.Text = "public class A { }";
-                    Assert.True(FindControl(form, "btnEditOutput")!.Enabled);
+                    Assert.True(FindControl(form, "btnEditOutput")!.Enabled,
+                        "Edit must be usable on a cold start");
+                }
+                finally { form.Close(); }
+            });
+        }
+
+        /// <summary>
+        /// The whole point of enabling Edit on an empty pane: type a bundle in, and the strip
+        /// picks it up.
+        /// </summary>
+        /// <remarks>
+        /// Also guards the overlay. "No pack yet" is painted <em>over</em> the output box rather
+        /// than instead of it, so leaving it up during an edit would hide the box the user just
+        /// unlocked — the feature would look broken while working perfectly.
+        /// </remarks>
+        [Fact]
+        public void Editing_an_empty_pane_uncovers_the_box_and_the_strip_follows_what_is_typed()
+        {
+            StaRunner.Run(() =>
+            {
+                using var form = new MainForm();
+                form.Show();
+                try
+                {
+                    var output = (RichTextBox)FindControl(form, "rtbOutput")!;
+                    var empty = FindControl(form, "emptyOutput")!;
+                    var edit = (Button)FindControl(form, "btnEditOutput")!;
+
+                    Assert.True(empty.Visible, "empty state should cover an empty pane at rest");
+
+                    edit.PerformClick();
+                    Assert.False(output.ReadOnly, "Edit should unlock the pane");
+                    Assert.False(empty.Visible, "the empty state must come down while editing");
+
+                    // Paste in a sealed bundle, as someone would who was sent one.
+                    output.Text = EncryptedBlob();
+                    Assert.True(FindControl(form, "btnDecompressEnc")!.Enabled,
+                        "Decrypt should light up for a pasted encrypted bundle");
+                    Assert.False(FindControl(form, "btnCompressEnc")!.Enabled);
+
+                    edit.PerformClick();
+                    Assert.True(output.ReadOnly, "Edit should lock the pane again");
+                    Assert.False(empty.Visible, "there is content now, so the empty state stays down");
+                }
+                finally { form.Close(); }
+            });
+        }
+
+        /// <summary>
+        /// Leaving edit mode with nothing typed puts the empty state back.
+        /// </summary>
+        [Fact]
+        public void Leaving_an_edit_with_an_empty_pane_restores_the_empty_state()
+        {
+            StaRunner.Run(() =>
+            {
+                using var form = new MainForm();
+                form.Show();
+                try
+                {
+                    var empty = FindControl(form, "emptyOutput")!;
+                    var edit = (Button)FindControl(form, "btnEditOutput")!;
+
+                    edit.PerformClick();
+                    Assert.False(empty.Visible);
+
+                    edit.PerformClick();
+                    Assert.True(empty.Visible, "nothing was typed, so 'No pack yet' should return");
                 }
                 finally { form.Close(); }
             });

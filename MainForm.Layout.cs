@@ -571,6 +571,16 @@ namespace CodeShuttle
                 b.ForeColor = t.TextPrimary;
                 b.FlatAppearance.MouseOverBackColor = t.SurfaceAlt;
             }
+
+            // Edit stays lit while the pane is unlocked. Two channels, not one: the accent wash
+            // and a matching border, so the state does not rest on colour alone.
+            if (_editingOutput)
+            {
+                btnEditOutput.BackColor = t.Selection;
+                btnEditOutput.ForeColor = t.AccentOnSurface;
+                btnEditOutput.FlatAppearance.BorderColor = t.AccentOnSurface;
+                btnEditOutput.FlatAppearance.MouseOverBackColor = t.Selection;
+            }
         }
 
         /// <summary>
@@ -769,6 +779,16 @@ namespace CodeShuttle
         /// </remarks>
         private bool _tearingDown;
 
+        /// <summary>
+        /// True while the output pane is unlocked for typing, from Edit.
+        /// </summary>
+        /// <remarks>
+        /// Tracked explicitly rather than read from <c>rtbOutput.ReadOnly</c>, because the
+        /// compression handlers unlock the pane for the length of one assignment and would
+        /// otherwise register as an editing session.
+        /// </remarks>
+        private bool _editingOutput;
+
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             base.OnFormClosing(e);
@@ -810,6 +830,8 @@ namespace CodeShuttle
 
             bool hasOutput = rtbOutput.TextLength > 0;
 
+            // Except while editing: the empty state is painted *over* the output box, so leaving it
+            // up during an edit would hide the very box the user just unlocked to type into.
             // Only the empty state is toggled. The output box stays visible underneath it and is
             // simply covered, because hiding a RichTextBox stops Windows creating its handle: the
             // control then buffers whatever is assigned to it and creates the handle later, at a
@@ -817,13 +839,18 @@ namespace CodeShuttle
             // handle creation landed inside the dispose walk and threw "Dispose() cannot be called
             // while doing CreateHandle()" — a crash dialog every time the window was closed after
             // generating anything.
-            emptyOutput.Visible = !hasOutput;
+            emptyOutput.Visible = !hasOutput && !_editingOutput;
 
-            // Nothing to find, edit, export or copy until there is a pack.
+            // Nothing to find, export or copy until there is a pack.
             btnFindReplace.Enabled = hasOutput;
-            btnEditOutput.Enabled = hasOutput;
             btnExportOutput.Enabled = hasOutput;
             btnCopyOutput.Enabled = hasOutput;
+
+            // Edit is the exception, and is never disabled. An empty pane is a legitimate thing to
+            // want to type into: pasting a bundle a colleague sent, or writing one by hand to
+            // decrypt or decompress it. Gating Edit on there already being a pack made the one
+            // control that can *create* pane content depend on pane content already existing.
+            btnEditOutput.Enabled = true;
 
             // The four protect buttons are enabled against what the pane actually holds, sniffed
             // from the blob's magic prefix, so the strip cannot offer to decrypt plain text or to

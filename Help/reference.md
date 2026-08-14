@@ -51,10 +51,9 @@ passwords in the right order to open, and nothing records either of them; decryp
 want to change the password.
 
 **Edit** unlocks the pane for typing, and works on an empty pane too — that is how you paste in a
-pack somebody sent you and decrypt it without generating anything first.
-
-**Edit** sits in the same row because it also acts on the text in the pane, unlike Export, Copy and
-Generate, which act on the pack as a whole.
+pack somebody sent you and decrypt it without generating anything first. It sits in this row rather
+than with Export, Copy and Generate because, like the four beside it, it acts on the text in the
+pane; those act on the pack as a whole.
 
 ## Token estimation
 

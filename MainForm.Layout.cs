@@ -852,19 +852,17 @@ namespace CodeShuttle
             // control that can *create* pane content depend on pane content already existing.
             btnEditOutput.Enabled = true;
 
-            // The four protect buttons are enabled against what the pane actually holds, sniffed
-            // from the blob's magic prefix, so the strip cannot offer to decrypt plain text or to
-            // encrypt something that is already sealed. Each disabled button keeps a tooltip saying
-            // why, because a greyed control with no explanation is its own bug report.
-            var pane = rtbOutput.Text ?? string.Empty;
-            bool encrypted = CompressionUtils.LooksLikeEncryptedBase64(pane);
-            bool compressed = CompressionUtils.LooksLikeCompressedBase64(pane);
-            bool plain = hasOutput && !encrypted && !compressed;
-
-            btnCompress.Enabled = plain;
-            btnCompressEnc.Enabled = plain;
-            btnDecompress.Enabled = compressed;
-            btnDecompressEnc.Enabled = encrypted;
+            // All four are live as soon as there is anything in the pane.
+            //
+            // They used to be gated on what the pane held — decrypt only for a sealed blob, and so
+            // on. The logic was right and the feedback was useless: a button greyed for a reason
+            // the window never states is indistinguishable from a broken one, and it was read as
+            // exactly that. Each handler now checks the same condition and says what is wrong, in a
+            // sentence, which is the same protection with an explanation attached.
+            btnCompress.Enabled = hasOutput;
+            btnCompressEnc.Enabled = hasOutput;
+            btnDecompress.Enabled = hasOutput;
+            btnDecompressEnc.Enabled = hasOutput;
         }
     }
 }

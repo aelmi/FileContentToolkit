@@ -42,11 +42,16 @@ variants additionally seal it with AES-GCM behind a password you confirm twice.
 There is no password recovery. A blob whose password is lost is not decryptable — that is what
 authenticated encryption means, not a limitation to be worked around.
 
-Only the buttons that apply to what the pane currently holds are enabled, read from the blob's own
-header: plain text can be compressed or encrypted, a compressed pack can only be decompressed, and
-a sealed one can only be decrypted. That is why **Encrypt** greys out once a pack is already
-sealed — encrypting twice would produce a blob needing two passwords in the right order, and
-nothing records either of them.
+All four are available as soon as there is anything in the pane. If an action does not apply, the
+app says so in a sentence rather than greying the button out — **Decrypt** on plain text tells you
+the pack is not encrypted, and points you at **Decompress** if that is what it actually is.
+
+**Encrypt** refuses on a pack that is already sealed. Encrypting twice produces a blob needing both
+passwords in the right order to open, and nothing records either of them; decrypt it first if you
+want to change the password.
+
+**Edit** unlocks the pane for typing, and works on an empty pane too — that is how you paste in a
+pack somebody sent you and decrypt it without generating anything first.
 
 **Edit** sits in the same row because it also acts on the text in the pane, unlike Export, Copy and
 Generate, which act on the pack as a whole.

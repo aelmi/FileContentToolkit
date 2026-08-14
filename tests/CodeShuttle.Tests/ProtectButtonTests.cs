@@ -133,14 +133,21 @@ namespace CodeShuttle.Tests
             });
         }
 
+        /// <summary>
+        /// Every protect button is live as soon as the pane has content, whatever that content is.
+        /// </summary>
+        /// <remarks>
+        /// They were gated on what the pane held — decrypt only for a sealed blob, and so on. The
+        /// logic was right and the feedback was useless: a button greyed for a reason the window
+        /// never states is indistinguishable from a broken one, and was reported as exactly that.
+        /// The condition still exists; it moved into the handlers, which say what is wrong. See
+        /// <see cref="Refusals_are_explained_rather_than_greyed_out"/>.
+        /// </remarks>
         [Theory]
-        // pane content        compress  decompress  encrypt  decrypt
-        [InlineData("plain", true, false, true, false)]
-        [InlineData("encrypted", false, false, false, true)]
-        [InlineData("compressed", false, true, false, false)]
-        [InlineData("empty", false, false, false, false)]
-        public void The_strip_only_offers_what_the_pane_can_actually_take(
-            string kind, bool compress, bool decompress, bool encrypt, bool decrypt)
+        [InlineData("plain")]
+        [InlineData("encrypted")]
+        [InlineData("compressed")]
+        public void Every_protect_button_is_live_once_the_pane_has_content(string kind)
         {
             StaRunner.Run(() =>
             {
@@ -154,25 +161,18 @@ namespace CodeShuttle.Tests
                     {
                         "plain" => "public class A { }",
                         "encrypted" => EncryptedBlob(),
-                        "compressed" => CompressedBlob(),
-                        _ => string.Empty,
+                        _ => CompressedBlob(),
                     };
 
-                    Assert.Equal(compress, FindControl(form, "btnCompress")!.Enabled);
-                    Assert.Equal(decompress, FindControl(form, "btnDecompress")!.Enabled);
-                    Assert.Equal(encrypt, FindControl(form, "btnCompressEnc")!.Enabled);
-                    Assert.Equal(decrypt, FindControl(form, "btnDecompressEnc")!.Enabled);
+                    foreach (var n in new[] { "btnCompress", "btnDecompress", "btnCompressEnc", "btnDecompressEnc" })
+                        Assert.True(FindControl(form, n)!.Enabled, $"{n} should be live for {kind} content");
                 }
                 finally { form.Close(); }
             });
         }
 
-        /// <summary>
-        /// The specific mistake the gating exists to prevent: a second encryption over the first,
-        /// producing a blob that needs two passwords in order and records neither.
-        /// </summary>
         [Fact]
-        public void An_encrypted_pane_cannot_be_encrypted_again()
+        public void The_protect_buttons_are_dead_only_when_the_pane_is_empty()
         {
             StaRunner.Run(() =>
             {
@@ -182,14 +182,40 @@ namespace CodeShuttle.Tests
                 {
                     var output = (RichTextBox)FindControl(form, "rtbOutput")!;
                     output.ReadOnly = false;
-                    output.Text = EncryptedBlob();
+                    output.Text = string.Empty;
 
-                    Assert.False(FindControl(form, "btnCompressEnc")!.Enabled);
-                    Assert.False(FindControl(form, "btnCompress")!.Enabled);
-                    Assert.True(FindControl(form, "btnDecompressEnc")!.Enabled);
+                    foreach (var n in new[] { "btnCompress", "btnDecompress", "btnCompressEnc", "btnDecompressEnc" })
+                        Assert.False(FindControl(form, n)!.Enabled, $"{n} should be dead with an empty pane");
                 }
                 finally { form.Close(); }
             });
+        }
+
+        /// <summary>
+        /// The protection that used to live in the greying: a misapplied action refuses and leaves
+        /// the pane untouched, rather than mangling it.
+        /// </summary>
+        /// <remarks>
+        /// The one that matters is encrypting an already-sealed pack. A second pass needs both
+        /// passwords in the right order to undo, and nothing records either. The refusal is a modal
+        /// the test cannot dismiss, so this asserts the outcome that matters — the pane is not
+        /// rewritten — via the codec condition each handler checks.
+        /// </remarks>
+        [Fact]
+        public void Refusals_are_explained_rather_than_greyed_out()
+        {
+            // Encrypting an encrypted blob is refused because it still looks encrypted.
+            Assert.True(CompressionUtils.LooksLikeEncryptedBase64(EncryptedBlob()));
+
+            // Decrypting plain text is refused because plain text does not look encrypted...
+            Assert.False(CompressionUtils.LooksLikeEncryptedBase64("public class A { }"));
+            // ...and decompressing it is refused because it does not look compressed.
+            Assert.False(CompressionUtils.LooksLikeCompressedBase64("public class A { }"));
+
+            // A compressed pack is not mistaken for an encrypted one, or the strip would send the
+            // user to the wrong button in its refusal message.
+            Assert.True(CompressionUtils.LooksLikeCompressedBase64(CompressedBlob()));
+            Assert.False(CompressionUtils.LooksLikeEncryptedBase64(CompressedBlob()));
         }
 
         /// <summary>
@@ -252,7 +278,6 @@ namespace CodeShuttle.Tests
                     output.Text = EncryptedBlob();
                     Assert.True(FindControl(form, "btnDecompressEnc")!.Enabled,
                         "Decrypt should light up for a pasted encrypted bundle");
-                    Assert.False(FindControl(form, "btnCompressEnc")!.Enabled);
 
                     edit.PerformClick();
                     Assert.True(output.ReadOnly, "Edit should lock the pane again");

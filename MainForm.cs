@@ -454,6 +454,20 @@ namespace CodeShuttle
         private async void BtnDecompress_Click(object sender, EventArgs e)
         {
             var base64 = rtbOutput.Text ?? string.Empty;
+
+            // Answered here rather than by the codec, whose "not valid Base64" is true but tells a
+            // user staring at their own source code nothing they can act on.
+            if (!CompressionUtils.LooksLikeCompressedBase64(base64))
+            {
+                AppMessage.Warning(this, "Nothing to decompress",
+                    base64.Length == 0
+                        ? "The output pane is empty. Paste a compressed pack into it first — use Edit to unlock the pane."
+                        : CompressionUtils.LooksLikeEncryptedBase64(base64)
+                            ? "This pack is encrypted. Use Decrypt — it decompresses as part of the same step."
+                            : "This pack is not compressed — it is already readable text.");
+                return;
+            }
+
             try
             {
                 // Off the UI thread and under a hard output budget: a crafted 2 MB payload can
@@ -476,6 +490,17 @@ namespace CodeShuttle
 
         private async void BtnCompressEnc_Click(object sender, EventArgs e)
         {
+            // Refused rather than greyed out, but still refused: a second pass over a sealed blob
+            // needs both passwords, in order, to undo — and nothing records either of them.
+            if (CompressionUtils.LooksLikeEncryptedBase64(rtbOutput.Text ?? string.Empty))
+            {
+                AppMessage.Warning(this, "Already encrypted",
+                    "This pack is already sealed. Encrypting it again would need both passwords, in "
+                    + "the right order, to open — and neither is recorded anywhere. Decrypt it first "
+                    + "if you want to change the password.");
+                return;
+            }
+
             // Routed through the validating entry point WITH confirmation: encryption is one-way,
             // so a single mistyped character used to produce a permanently unrecoverable blob.
             var pwd = PasswordDialog.ShowDialogWithValidation(
@@ -529,6 +554,20 @@ namespace CodeShuttle
 
         private async void BtnDecompressEnc_Click(object sender, EventArgs e)
         {
+            // Checked before the password prompt, not after. Asking for a password and only then
+            // reporting that there was nothing to unlock wastes the one step the user cannot skip.
+            var pane = rtbOutput.Text ?? string.Empty;
+            if (!CompressionUtils.LooksLikeEncryptedBase64(pane))
+            {
+                AppMessage.Warning(this, "Nothing to decrypt",
+                    pane.Length == 0
+                        ? "The output pane is empty. Paste an encrypted pack into it first — use Edit to unlock the pane."
+                        : CompressionUtils.LooksLikeCompressedBase64(pane)
+                            ? "This pack is compressed but not encrypted. Use Decompress instead."
+                            : "This pack is not encrypted — it is already readable text.");
+                return;
+            }
+
             var pwd = PasswordDialog.ShowDialog(this, "Enter password for decryption");
             if (string.IsNullOrEmpty(pwd)) return; // cancelled
 

@@ -1,13 +1,12 @@
 using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace FileContentToolkit.Diagnostics
+namespace CodeShuttle.Diagnostics
 {
     public sealed class UpdateInfo
     {
@@ -26,14 +25,18 @@ namespace FileContentToolkit.Diagnostics
     {
         private static readonly HttpClient _http = CreateClient();
 
+        // Cached: JsonSerializerOptions is expensive to construct and caches its own metadata,
+        // so a fresh instance per call defeats that cache (CA1869).
+        private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
+
         // Repository to check. Adjust if you fork.
         public const string Owner = "aelmi";
-        public const string Repo = "FileContentToolkit";
+        public const string Repo = "CodeShuttle";
 
         private static HttpClient CreateClient()
         {
             var c = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
-            c.DefaultRequestHeaders.UserAgent.ParseAdd("FileContentToolkit-UpdateChecker/1.0");
+            c.DefaultRequestHeaders.UserAgent.ParseAdd("CodeShuttle-UpdateChecker/1.0");
             c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
             return c;
         }
@@ -47,11 +50,18 @@ namespace FileContentToolkit.Diagnostics
                 if (!resp.IsSuccessStatusCode) return null;
 
                 await using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                var release = await JsonSerializer.DeserializeAsync<GhRelease>(stream,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, ct).ConfigureAwait(false);
+                var release = await JsonSerializer.DeserializeAsync<GhRelease>(stream, _json, ct)
+                    .ConfigureAwait(false);
                 if (release == null || string.IsNullOrEmpty(release.TagName)) return null;
 
-                var current = Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(0, 0);
+                // The releases/latest endpoint excludes drafts but INCLUDES prereleases, so
+                // without this filter publishing a single beta would offer that beta to every
+                // stable user as an update. Both flags are checked defensively.
+                if (release.Prerelease || release.Draft) return null;
+
+                // Must come from the informational version. The assembly's binding version is
+                // pinned at 1.0.0.0, which made this check report "update available" every launch.
+                var current = ParseVersion(AppVersion.Display);
                 var latest = ParseVersion(release.TagName);
 
                 return new UpdateInfo
@@ -74,7 +84,7 @@ namespace FileContentToolkit.Diagnostics
             if (string.IsNullOrWhiteSpace(tag)) return new Version(0, 0);
             var s = tag.TrimStart('v', 'V');
             // strip anything after a '-' or '+' so prereleases parse cleanly
-            int cut = s.IndexOfAny(new[] { '-', '+' });
+            int cut = s.AsSpan().IndexOfAny('-', '+');
             if (cut >= 0) s = s.Substring(0, cut);
             return Version.TryParse(s, out var v) ? v : new Version(0, 0);
         }
@@ -83,6 +93,8 @@ namespace FileContentToolkit.Diagnostics
         {
             [JsonPropertyName("tag_name")] public string? TagName { get; set; }
             [JsonPropertyName("html_url")] public string? HtmlUrl { get; set; }
+            [JsonPropertyName("prerelease")] public bool Prerelease { get; set; }
+            [JsonPropertyName("draft")] public bool Draft { get; set; }
         }
     }
 }

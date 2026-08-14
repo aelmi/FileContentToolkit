@@ -1,16 +1,13 @@
-﻿namespace FileContentToolkit.Dialogs
+using System.Drawing;
+using System.Windows.Forms;
+using CodeShuttle.Theming;
+
+namespace CodeShuttle.Dialogs
 {
     partial class PasswordDialog
     {
-        /// <summary>
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -23,184 +20,235 @@
         #region Windows Form Designer generated code
 
         /// <summary>
-        /// Required method for Designer support - do not modify
-        /// the contents of this method with the code editor.
+        /// Rebuilt rather than repaired.
         /// </summary>
+        /// <remarks>
+        /// The previous layout declared <c>AutoScaleDimensions (10F, 25F)</c> but never set
+        /// <c>this.Font</c>, so it inherited Segoe UI 9pt — measured at (7, 15) — and WinForms
+        /// rescaled it by 0.70 horizontally and 0.60 vertically. Non-uniformly. Control sizes had
+        /// been recorded at the large metric while locations and <c>ClientSize</c> stayed at the
+        /// small one, which is why <c>chkShowPassword</c>, nominally at y=90 inside a parent 90
+        /// tall, ended up outside its parent entirely. Those coordinates were internally
+        /// inconsistent and no amount of nudging would have survived the scaling change, so the
+        /// layout is expressed here as a flow of docked rows with no absolute coordinates left to
+        /// go stale, and the dialog sizes itself to its content via <c>AutoSize</c>.
+        ///
+        /// The confirm-password row added by the previous workstream is carried through; it is
+        /// collapsed rather than merely hidden when confirmation is not required, so the dialog
+        /// shrinks to fit instead of leaving a gap.
+        /// </remarks>
         private void InitializeComponent()
         {
-            this.pnlHeader = new System.Windows.Forms.Panel();
-            this.lblHeader = new System.Windows.Forms.Label();
-            this.pnlContent = new System.Windows.Forms.Panel();
-            this.chkShowPassword = new System.Windows.Forms.CheckBox();
-            this.txtPassword = new System.Windows.Forms.TextBox();
-            this.lblPrompt = new System.Windows.Forms.Label();
-            this.pnlButtons = new System.Windows.Forms.Panel();
-            this.btnCancel = new System.Windows.Forms.Button();
-            this.btnOK = new System.Windows.Forms.Button();
-            this.pnlHeader.SuspendLayout();
-            this.pnlContent.SuspendLayout();
-            this.pnlButtons.SuspendLayout();
-            this.SuspendLayout();
-            // 
-            // pnlHeader
-            // 
-            this.pnlHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(102)))), ((int)(((byte)(204)))));
-            this.pnlHeader.Controls.Add(this.lblHeader);
-            this.pnlHeader.Dock = System.Windows.Forms.DockStyle.Top;
-            this.pnlHeader.Location = new System.Drawing.Point(0, 0);
-            this.pnlHeader.Name = "pnlHeader";
-            this.pnlHeader.Size = new System.Drawing.Size(420, 50);
-            this.pnlHeader.TabIndex = 0;
-            // 
-            // lblHeader
-            // 
-            this.lblHeader.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lblHeader.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.lblHeader.ForeColor = System.Drawing.Color.White;
-            this.lblHeader.Location = new System.Drawing.Point(0, 0);
-            this.lblHeader.Name = "lblHeader";
-            this.lblHeader.Size = new System.Drawing.Size(420, 50);
-            this.lblHeader.TabIndex = 0;
-            this.lblHeader.Text = "🔐 Enter Password";
-            this.lblHeader.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // pnlContent
-            // 
-            this.pnlContent.BackColor = System.Drawing.Color.White;
-            this.pnlContent.Controls.Add(this.chkShowPassword);
-            this.pnlContent.Controls.Add(this.txtPassword);
-            this.pnlContent.Controls.Add(this.lblPrompt);
-            this.pnlContent.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlContent.Location = new System.Drawing.Point(0, 50);
-            this.pnlContent.Name = "pnlContent";
-            this.pnlContent.Padding = new System.Windows.Forms.Padding(20);
-            this.pnlContent.Size = new System.Drawing.Size(420, 90);
-            this.pnlContent.TabIndex = 1;
-            // 
-            // chkShowPassword
-            // 
-            this.chkShowPassword.AutoSize = true;
-            this.chkShowPassword.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.chkShowPassword.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            this.chkShowPassword.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.chkShowPassword.Location = new System.Drawing.Point(20, 90);
-            this.chkShowPassword.Name = "chkShowPassword";
-            this.chkShowPassword.Size = new System.Drawing.Size(148, 29);
-            this.chkShowPassword.TabIndex = 2;
-            this.chkShowPassword.Text = "Show password";
-            this.chkShowPassword.UseVisualStyleBackColor = true;
-            this.chkShowPassword.CheckedChanged += new System.EventHandler(this.ChkShowPassword_CheckedChanged);
-            // 
-            // txtPassword
-            // 
-            this.txtPassword.BackColor = System.Drawing.Color.White;
-            this.txtPassword.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.txtPassword.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            this.txtPassword.Location = new System.Drawing.Point(20, 50);
-            this.txtPassword.Name = "txtPassword";
-            this.txtPassword.Size = new System.Drawing.Size(380, 34);
-            this.txtPassword.TabIndex = 1;
-            this.txtPassword.UseSystemPasswordChar = true;
-            this.txtPassword.KeyDown += new System.Windows.Forms.KeyEventHandler(this.TxtPassword_KeyDown);
-            // 
-            // lblPrompt
-            // 
-            this.lblPrompt.AutoSize = true;
-            this.lblPrompt.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            this.lblPrompt.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
-            this.lblPrompt.Location = new System.Drawing.Point(20, 20);
-            this.lblPrompt.Name = "lblPrompt";
-            this.lblPrompt.Size = new System.Drawing.Size(147, 28);
-            this.lblPrompt.TabIndex = 0;
-            this.lblPrompt.Text = "Enter password:";
-            // 
-            // pnlButtons
-            // 
-            this.pnlButtons.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
-            this.pnlButtons.Controls.Add(this.btnCancel);
-            this.pnlButtons.Controls.Add(this.btnOK);
-            this.pnlButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.pnlButtons.Location = new System.Drawing.Point(0, 140);
-            this.pnlButtons.Name = "pnlButtons";
-            this.pnlButtons.Size = new System.Drawing.Size(420, 60);
-            this.pnlButtons.TabIndex = 2;
-            // 
-            // btnCancel
-            // 
-            this.btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnCancel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.btnCancel.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.FlatAppearance.BorderSize = 0;
-            this.btnCancel.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnCancel.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            this.btnCancel.ForeColor = System.Drawing.Color.White;
-            this.btnCancel.Location = new System.Drawing.Point(300, 10);
-            this.btnCancel.Name = "btnCancel";
-            this.btnCancel.Size = new System.Drawing.Size(100, 40);
-            this.btnCancel.TabIndex = 1;
-            this.btnCancel.Text = "Cancel";
-            this.btnCancel.UseVisualStyleBackColor = false;
-            this.btnCancel.MouseEnter += new System.EventHandler(this.BtnCancel_MouseEnter);
-            this.btnCancel.MouseLeave += new System.EventHandler(this.BtnCancel_MouseLeave);
-            // 
-            // btnOK
-            // 
-            this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnOK.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(123)))), ((int)(((byte)(255)))));
-            this.btnOK.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
-            this.btnOK.FlatAppearance.BorderSize = 0;
-            this.btnOK.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnOK.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            this.btnOK.ForeColor = System.Drawing.Color.White;
-            this.btnOK.Location = new System.Drawing.Point(190, 10);
-            this.btnOK.Name = "btnOK";
-            this.btnOK.Size = new System.Drawing.Size(100, 40);
-            this.btnOK.TabIndex = 0;
-            this.btnOK.Text = "OK";
-            this.btnOK.UseVisualStyleBackColor = false;
-            this.btnOK.MouseEnter += new System.EventHandler(this.BtnOK_MouseEnter);
-            this.btnOK.MouseLeave += new System.EventHandler(this.BtnOK_MouseLeave);
-            // 
-            // PasswordDialog
-            // 
-            this.AcceptButton = this.btnOK;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(10F, 25F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(240)))), ((int)(((byte)(244)))), ((int)(((byte)(248)))));
-            this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(420, 200);
-            this.Controls.Add(this.pnlContent);
-            this.Controls.Add(this.pnlButtons);
-            this.Controls.Add(this.pnlHeader);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
-            this.Name = "PasswordDialog";
-            this.ShowIcon = false;
-            this.ShowInTaskbar = false;
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "Password Required";
-            this.Shown += new System.EventHandler(this.PasswordDialog_Shown);
-            this.pnlHeader.ResumeLayout(false);
-            this.pnlContent.ResumeLayout(false);
-            this.pnlContent.PerformLayout();
-            this.pnlButtons.ResumeLayout(false);
-            this.ResumeLayout(false);
+            pnlHeader = new Panel();
+            lblHeader = new Label();
+            pnlContent = new TableLayoutPanel();
+            lblPrompt = new Label();
+            txtPassword = new TextBox();
+            lblConfirm = new Label();
+            txtConfirm = new TextBox();
+            chkShowPassword = new CheckBox();
+            pnlButtons = new FlowLayoutPanel();
+            btnCancel = new Button();
+            btnOK = new Button();
 
+            pnlHeader.SuspendLayout();
+            pnlContent.SuspendLayout();
+            pnlButtons.SuspendLayout();
+            SuspendLayout();
+            //
+            // pnlHeader
+            //
+            pnlHeader.AutoSize = true;
+            pnlHeader.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            pnlHeader.Controls.Add(lblHeader);
+            pnlHeader.Dock = DockStyle.Top;
+            pnlHeader.Name = "pnlHeader";
+            pnlHeader.Padding = new Padding(16, 12, 16, 12);
+            pnlHeader.TabIndex = 0;
+            //
+            // lblHeader
+            //
+            lblHeader.AutoSize = true;
+            lblHeader.Dock = DockStyle.Fill;
+            lblHeader.Name = "lblHeader";
+            lblHeader.Text = "Enter Password";
+            lblHeader.TextAlign = ContentAlignment.MiddleCenter;
+            //
+            // pnlContent
+            //
+            // One column, one row per field. Every row is AutoSize, so the dialog grows with the
+            // font rather than clipping when the user raises the Windows text size.
+            pnlContent.AutoSize = true;
+            pnlContent.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            pnlContent.ColumnCount = 1;
+            pnlContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            pnlContent.Dock = DockStyle.Top;
+            pnlContent.Name = "pnlContent";
+            pnlContent.Padding = new Padding(16, 14, 16, 10);
+            pnlContent.RowCount = 5;
+            for (int i = 0; i < 5; i++) pnlContent.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            pnlContent.TabIndex = 1;
+
+            // The label must precede its input in the Controls collection or UI Automation cannot
+            // infer the association, which for a password field means an unnamed edit box.
+            pnlContent.Controls.Add(lblPrompt, 0, 0);
+            pnlContent.Controls.Add(txtPassword, 0, 1);
+            pnlContent.Controls.Add(lblConfirm, 0, 2);
+            pnlContent.Controls.Add(txtConfirm, 0, 3);
+            pnlContent.Controls.Add(chkShowPassword, 0, 4);
+            //
+            // lblPrompt
+            //
+            lblPrompt.AutoSize = true;
+            lblPrompt.Margin = new Padding(0, 0, 0, 4);
+            lblPrompt.Name = "lblPrompt";
+            lblPrompt.Text = "Enter password:";
+            lblPrompt.TabIndex = 0;
+            //
+            // txtPassword
+            //
+            txtPassword.BorderStyle = BorderStyle.FixedSingle;
+            txtPassword.Dock = DockStyle.Fill;
+            txtPassword.Margin = new Padding(0, 0, 0, 12);
+            txtPassword.Name = "txtPassword";
+            txtPassword.TabIndex = 1;
+            txtPassword.AccessibleName = "Password";
+            txtPassword.UseSystemPasswordChar = true;
+            txtPassword.KeyDown += TxtPassword_KeyDown;
+            //
+            // lblConfirm
+            //
+            lblConfirm.AutoSize = true;
+            lblConfirm.Margin = new Padding(0, 0, 0, 4);
+            lblConfirm.Name = "lblConfirm";
+            lblConfirm.Text = "Confirm password:";
+            lblConfirm.TabIndex = 2;
+            //
+            // txtConfirm
+            //
+            txtConfirm.BorderStyle = BorderStyle.FixedSingle;
+            txtConfirm.Dock = DockStyle.Fill;
+            txtConfirm.Margin = new Padding(0, 0, 0, 12);
+            txtConfirm.Name = "txtConfirm";
+            txtConfirm.TabIndex = 3;
+            txtConfirm.AccessibleName = "Confirm password";
+            txtConfirm.UseSystemPasswordChar = true;
+            txtConfirm.KeyDown += TxtPassword_KeyDown;
+            //
+            // chkShowPassword
+            //
+            chkShowPassword.AutoSize = true;
+            chkShowPassword.Cursor = Cursors.Hand;
+            chkShowPassword.Margin = new Padding(0, 0, 0, 0);
+            chkShowPassword.Name = "chkShowPassword";
+            chkShowPassword.TabIndex = 4;
+            chkShowPassword.Text = "Show password";
+            chkShowPassword.UseVisualStyleBackColor = true;
+            chkShowPassword.CheckedChanged += ChkShowPassword_CheckedChanged;
+            //
+            // pnlButtons
+            //
+            pnlButtons.AutoSize = true;
+            pnlButtons.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            pnlButtons.Controls.Add(btnOK);
+            pnlButtons.Controls.Add(btnCancel);
+            pnlButtons.Dock = DockStyle.Top;
+            pnlButtons.FlowDirection = FlowDirection.RightToLeft;
+            pnlButtons.Name = "pnlButtons";
+            pnlButtons.Padding = new Padding(16, 8, 16, 14);
+            pnlButtons.TabIndex = 2;
+            pnlButtons.WrapContents = false;
+            //
+            // btnOK
+            //
+            btnOK.AutoSize = true;
+            btnOK.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnOK.Cursor = Cursors.Hand;
+            btnOK.DialogResult = DialogResult.OK;
+            btnOK.FlatAppearance.BorderSize = 0;
+            btnOK.FlatStyle = FlatStyle.Flat;
+            btnOK.Margin = new Padding(8, 0, 0, 0);
+            btnOK.MinimumSize = new Size(88, 30);
+            btnOK.Name = "btnOK";
+            btnOK.Padding = new Padding(10, 4, 10, 4);
+            btnOK.TabIndex = 0;
+            btnOK.Text = "OK";
+            btnOK.UseVisualStyleBackColor = false;
+            //
+            // btnCancel
+            //
+            btnCancel.AutoSize = true;
+            btnCancel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnCancel.Cursor = Cursors.Hand;
+            btnCancel.DialogResult = DialogResult.Cancel;
+            btnCancel.FlatAppearance.BorderSize = 0;
+            btnCancel.FlatStyle = FlatStyle.Flat;
+            btnCancel.Margin = new Padding(8, 0, 0, 0);
+            btnCancel.MinimumSize = new Size(88, 30);
+            btnCancel.Name = "btnCancel";
+            btnCancel.Padding = new Padding(10, 4, 10, 4);
+            btnCancel.TabIndex = 1;
+            btnCancel.Text = "Cancel";
+            btnCancel.UseVisualStyleBackColor = false;
+            //
+            // PasswordDialog
+            //
+            AcceptButton = btnOK;
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            AutoSize = true;
+            AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            CancelButton = btnCancel;
+            ClientSize = new Size(400, 260);
+            Controls.Add(pnlButtons);
+            Controls.Add(pnlContent);
+            Controls.Add(pnlHeader);
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            MinimumSize = new Size(400, 0);
+            Name = "PasswordDialog";
+            ShowIcon = false;
+            ShowInTaskbar = false;
+            StartPosition = FormStartPosition.CenterParent;
+            Text = "Password Required";
+            Shown += PasswordDialog_Shown;
+
+            // Theme roles.
+            ThemeRoles.Set(pnlHeader, ThemeRole.Header);
+            ThemeRoles.Set(lblHeader, ThemeRole.HeaderTitle, FontRole.Title);
+            ThemeRoles.Set(pnlContent, ThemeRole.SurfaceAlt);
+            ThemeRoles.Set(lblPrompt, FontRole.Medium);
+            ThemeRoles.Set(txtPassword, FontRole.Medium);
+            ThemeRoles.Set(lblConfirm, FontRole.Medium);
+            ThemeRoles.Set(txtConfirm, FontRole.Medium);
+            ThemeRoles.Set(chkShowPassword, ThemeRole.TextSecondary, FontRole.Small);
+            ThemeRoles.Set(pnlButtons, ThemeRole.SurfaceAlt);
+            ThemeRoles.Set(btnOK, ThemeRole.ButtonAccent, FontRole.MediumBold);
+            ThemeRoles.Set(btnCancel, ThemeRole.ButtonSecondary, FontRole.Medium);
+
+            pnlHeader.ResumeLayout(false);
+            pnlHeader.PerformLayout();
+            pnlContent.ResumeLayout(false);
+            pnlContent.PerformLayout();
+            pnlButtons.ResumeLayout(false);
+            pnlButtons.PerformLayout();
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
 
-        private System.Windows.Forms.Panel pnlHeader;
-        private System.Windows.Forms.Label lblHeader;
-        private System.Windows.Forms.Panel pnlContent;
-        private System.Windows.Forms.CheckBox chkShowPassword;
-        private System.Windows.Forms.TextBox txtPassword;
-        private System.Windows.Forms.Label lblPrompt;
-        private System.Windows.Forms.Panel pnlButtons;
-        private System.Windows.Forms.Button btnCancel;
-        private System.Windows.Forms.Button btnOK;
+        private Panel pnlHeader;
+        private Label lblHeader;
+        private TableLayoutPanel pnlContent;
+        private CheckBox chkShowPassword;
+        private TextBox txtPassword;
+        private Label lblPrompt;
+        private Label lblConfirm;
+        private TextBox txtConfirm;
+        private FlowLayoutPanel pnlButtons;
+        private Button btnCancel;
+        private Button btnOK;
     }
 }

@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 
-namespace FileContentToolkit
+namespace CodeShuttle
 {
     /// <summary>
     /// Converts the toolkit's native "path:\ncontent\n\n\n\n" output into other
@@ -13,6 +13,10 @@ namespace FileContentToolkit
     /// </summary>
     public static class OutputFormatter
     {
+        // Cached rather than constructed per call: JsonSerializerOptions builds and caches
+        // reflection metadata, which a fresh instance per call discards (CA1869).
+        private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
+
         public static string ToMarkdown(string raw)
         {
             var sb = new StringBuilder();
@@ -48,8 +52,7 @@ namespace FileContentToolkit
             var list = new List<object>();
             foreach (var (path, content) in Parse(raw))
                 list.Add(new { path, content });
-            var opts = new JsonSerializerOptions { WriteIndented = true };
-            return JsonSerializer.Serialize(list, opts);
+            return JsonSerializer.Serialize(list, _jsonOptions);
         }
 
         public static string ForClaudePrompt(string raw, string? userQuestion = null)
@@ -82,36 +85,22 @@ namespace FileContentToolkit
 
         // -------------------- parsing --------------------
 
+        // There used to be a second, subtly different copy of the bundle parser here: it joined
+        // lines with '\n' and did not trim, while FileRecreator's joined with Environment.NewLine
+        // and did. Two parsers for one format is one parser too many — both now go through
+        // BundleFormat, which is also the only place the legacy header rule lives.
         private static IEnumerable<(string Path, string Content)> Parse(string? raw)
         {
-            if (string.IsNullOrEmpty(raw)) yield break;
-            var lines = raw.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-            string? current = null;
-            var buf = new StringBuilder();
-            foreach (var line in lines)
-            {
-                if (IsHeader(line))
-                {
-                    if (current != null)
-                        yield return (current, buf.ToString());
-                    current = line.TrimEnd(':');
-                    buf.Clear();
-                }
-                else if (current != null)
-                {
-                    if (buf.Length > 0) buf.Append('\n');
-                    buf.Append(line);
-                }
-            }
-            if (current != null)
-                yield return (current, buf.ToString());
+            List<BundleEntry> entries;
+            try { entries = BundleFormat.Parse(raw); }
+            catch (FormatException) { yield break; }
+
+            foreach (var entry in entries)
+                yield return (entry.Path, entry.Content);
         }
 
-        private static bool IsHeader(string line)
-            => line.EndsWith(":") && line.Length > 2 && (line[1] == ':' || line.StartsWith(".\\"));
-
         private static string EscapeXml(string s) =>
-            s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+            s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
 
         private static string GuessLanguage(string path)
         {

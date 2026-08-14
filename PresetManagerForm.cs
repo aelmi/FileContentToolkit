@@ -1,12 +1,13 @@
 using System;
 using System.Linq;
 using System.Windows.Forms;
-using FileContentToolkit.Settings;
-using FileContentToolkit.UI;
+using CodeShuttle.Theming;
+using CodeShuttle.Settings;
+using CodeShuttle.UI;
 
-namespace FileContentToolkit.Dialogs
+namespace CodeShuttle.Dialogs
 {
-    public partial class PresetManagerForm : Form
+    public partial class PresetManagerForm : ThemedForm
     {
         private readonly AppSettings _settings;
 
@@ -18,11 +19,6 @@ namespace FileContentToolkit.Dialogs
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             InitializeComponent();
 
-            if (Theme.AppIcon != null) Icon = Theme.AppIcon;
-            Theme.AttachHover(btnLoad, btnLoad.BackColor);
-            Theme.AttachHover(btnRename, btnRename.BackColor);
-            Theme.AttachHover(btnDelete, btnDelete.BackColor);
-            Theme.AttachHover(btnClose, btnClose.BackColor);
 
             ReloadList();
         }

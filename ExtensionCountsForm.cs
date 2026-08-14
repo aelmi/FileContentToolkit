@@ -3,11 +3,14 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using CodeShuttle.Theming;
 
-namespace FileContentToolkit
+namespace CodeShuttle
 {
-    public partial class ExtensionCountsForm : Form
+    public partial class ExtensionCountsForm : ThemedForm
     {
         private readonly FileContentService _service;
 
@@ -29,7 +32,7 @@ namespace FileContentToolkit
                 : "Include subfolders: No";
 
             // Events
-            btnRefresh.Click += (s, e) => LoadData();
+            btnRefresh.Click += async (s, e) => await LoadDataAsync();
             btnClose.Click += (s, e) => Close();
             btnAddExtension.Click += BtnAddExtension_Click;
 
@@ -43,15 +46,12 @@ namespace FileContentToolkit
             gridCounts.MultiSelect = true;
             gridCounts.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
 
-            // Modern styling tweaks (beyond designer)
+            // Grid colours and the header font come from the theme; the applier owns every cell
+            // style on this control so that dark mode reaches the header row too.
             gridCounts.EnableHeadersVisualStyles = false;
-            gridCounts.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 102, 204);
-            gridCounts.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            gridCounts.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            gridCounts.DefaultCellStyle.SelectionBackColor = Color.FromArgb(51, 122, 183);
-            gridCounts.DefaultCellStyle.SelectionForeColor = Color.White;
+            gridCounts.ColumnHeadersDefaultCellStyle.Font = ThemeFonts.Get(FontRole.MediumBold);
 
-            Shown += (s, e) => LoadData();
+            Shown += async (s, e) => await LoadDataAsync();
         }
 
         private bool IsDesignMode()
@@ -59,9 +59,27 @@ namespace FileContentToolkit
             return LicenseManager.UsageMode == LicenseUsageMode.Designtime || (Site?.DesignMode ?? false);
         }
 
-        private void LoadData()
+        /// <summary>
+        /// Enumerating on Shown ran a full-tree walk synchronously on the UI thread — a
+        /// multi-minute freeze on a large or network folder, with no window painted.
+        /// </summary>
+        private async Task LoadDataAsync()
         {
-            var list = _service.GetAvailableExtensionCounts(false);
+            List<(string Extension, int Count)> list;
+            try
+            {
+                UseWaitCursor = true;
+                list = await _service.GetAvailableExtensionCountsAsync(false, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "The folder could not be scanned: " + ex.Message,
+                    "Extension counts", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            finally { UseWaitCursor = false; }
+
+            if (IsDisposed) return;
 
             var dt = new DataTable();
             dt.Columns.Add("Extension", typeof(string));
@@ -116,7 +134,7 @@ namespace FileContentToolkit
 
                 var ext = extObj.ToString()!.Trim();
                 if (string.Equals(ext, "(no ext)", StringComparison.OrdinalIgnoreCase)) continue;
-                if (!ext.StartsWith(".")) ext = "." + ext;
+                if (!ext.StartsWith('.')) ext = "." + ext;
 
                 if (!_service.Extensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
                 {

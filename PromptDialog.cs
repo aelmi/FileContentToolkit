@@ -1,9 +1,10 @@
 using System.Windows.Forms;
-using FileContentToolkit.UI;
+using CodeShuttle.Theming;
+using CodeShuttle.UI;
 
-namespace FileContentToolkit.Dialogs
+namespace CodeShuttle.Dialogs
 {
-    public partial class PromptDialog : Form
+    public partial class PromptDialog : ThemedForm
     {
         public string Value
         {
@@ -19,13 +20,13 @@ namespace FileContentToolkit.Dialogs
         {
             InitializeComponent();
 
-            if (Theme.AppIcon != null) Icon = Theme.AppIcon;
-            Theme.AttachHover(btnOk, btnOk.BackColor);
-            Theme.AttachHover(btnCancel, btnCancel.BackColor);
 
             Text = title;
             lblHeaderTitle.Text = title;
             lblPrompt.Text = prompt;
+            // The caller supplies the prompt, so the accessible name has to follow it rather than
+            // stay at the designer's placeholder.
+            txtInput.AccessibleName = prompt?.TrimEnd(':', ' ') ?? "Value";
             txtInput.Text = initial ?? string.Empty;
             txtInput.SelectAll();
         }

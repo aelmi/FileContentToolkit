@@ -1,0 +1,83 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CodeShuttle</RootNamespace>
+    <AssemblyName>CodeShuttle</AssemblyName>
+    <ApplicationIcon>CodeShuttle.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>AnyCPU;x64</Platforms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>portable</DebugType>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!--
+      Static analysis. AnalysisMode is deliberately Recommended, not All: All turns on the
+      globalization (CA1303/CA1305/CA1310) and naming (CA1707) rule families, which produce
+      thousands of diagnostics on a WinForms app and none of them describe a real defect here.
+    -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!--
+      High-DPI and text rendering. ApplicationHighDpiMode is the LIVE mechanism, not a restatement
+      of something the manifest already does: app.manifest deliberately declares no dpiAware or
+      dpiAwareness, because the WinForms source generator rejects a manifest that carries them
+      (WFAC010) whether or not this property is also set, and the only alternative was a
+      suppression. This property is what makes ApplicationConfiguration.Initialize() call
+      Application.SetHighDpiMode(PerMonitorV2) before the first window is created.
+      DELETE IT AND THE APP SILENTLY DROPS TO SystemAware — blurry on any secondary monitor at a
+      different scale factor. See the matching comment in app.manifest.
+      ApplicationDefaultFont pins the default font that every form's AutoScaleDimensions of
+      (7F, 15F) is measured against.
+    -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationDefaultFont>Segoe UI, 9pt</ApplicationDefaultFont>
+    <ApplicationVisualStyles>true</ApplicationVisualStyles>
+    <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="CodeShuttle.ico" />
+  </ItemGroup>
+
+  <!--
+    Help content is embedded rather than deployed beside the exe: the product ships as a single
+    self-contained file, and a help system that depends on loose files next to it stops working
+    the moment someone moves the exe on its own.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Help\*.md" />
+  </ItemGroup>
+
+  <!--
+    The third-party notices are embedded so About renders the real file rather than a
+    hardcoded copy that drifts out of date. The installer also lays the same file down
+    beside the exe, which is where a compliance reviewer will look for it.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="THIRD-PARTY-NOTICES.txt" />
+  </ItemGroup>
+
+  <!--
+    The test project lives under tests\ inside this project's own directory (the repo stays
+    flat by design — no src\ restructure). Without these Removes the default globs would pull
+    the test sources into the application assembly.
+  -->
+  <ItemGroup>
+    <Compile Remove="tests\**" />
+    <None Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+    <Content Remove="tests\**" />
+  </ItemGroup>
+
+</Project>

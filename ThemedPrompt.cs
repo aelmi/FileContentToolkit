@@ -1,7 +1,7 @@
 using System.Windows.Forms;
-using FileContentToolkit.Dialogs;
+using CodeShuttle.Dialogs;
 
-namespace FileContentToolkit.UI
+namespace CodeShuttle.UI
 {
     /// <summary>
     /// Convenience wrapper around <see cref="PromptDialog"/> so callers don't have to manage the

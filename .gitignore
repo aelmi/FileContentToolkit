@@ -361,3 +361,26 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# ---------------------------------------------------------------------------
+# CodeShuttle
+# ---------------------------------------------------------------------------
+
+# This app's own output, accidentally committed back into its own repo once.
+CurrentCode.txt
+
+# Created by a stray `>$null` redirect that Git Bash treated as a filename.
+# Bracketed so the '$' is matched literally.
+[$]null
+NUL
+
+# Build / packaging output
+publish/
+artifacts/
+Output/
+*.msix
+
+# Code-signing material. NEVER commit these.
+*.pfx
+*.snk
+*.p12

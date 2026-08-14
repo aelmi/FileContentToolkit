@@ -4,11 +4,12 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
-using FileContentToolkit.UI;
+using CodeShuttle.Theming;
+using CodeShuttle.UI;
 
-namespace FileContentToolkit.Dialogs
+namespace CodeShuttle.Dialogs
 {
-    public partial class FolderTreePickerForm : Form
+    public partial class FolderTreePickerForm : ThemedForm
     {
         private readonly string _rootPath;
         private readonly HashSet<string>? _extensionFilter;
@@ -27,14 +28,17 @@ namespace FileContentToolkit.Dialogs
 
             InitializeComponent();
 
-            if (Theme.AppIcon != null) Icon = Theme.AppIcon;
-            Theme.AttachHover(btnOk, btnOk.BackColor);
-            Theme.AttachHover(btnCancel, btnCancel.BackColor);
 
             chkExtFilter.Checked = _extensionFilter != null;
             chkExtFilter.Enabled = _extensionFilter != null;
 
-            ReloadTree();
+            tree.AccessibleName = "Folders and files";
+            tree.AccessibleDescription = "Tick the files and folders to add. Expand a folder to see its contents.";
+
+            // Expanding in the constructor enumerated the first level synchronously before the
+            // window had been shown, so on a cold network share the user was left looking at a
+            // frozen main window and no dialog at all.
+            Shown += (s, e) => ReloadTree();
         }
 
         private void ReloadTree()
@@ -50,12 +54,24 @@ namespace FileContentToolkit.Dialogs
                 }
                 var root = MakeFolderNode(_rootPath);
                 tree.Nodes.Add(root);
-                root.Expand();
             }
             finally { tree.EndUpdate(); }
+
+            // Expanded after the dialog is on screen and painted, under a wait cursor, so a slow
+            // first level reads as "loading" rather than as a hang.
+            UseWaitCursor = true;
+            try
+            {
+                Update();
+                tree.Nodes[0].Expand();
+            }
+            finally
+            {
+                UseWaitCursor = false;
+            }
         }
 
-        private TreeNode MakeFolderNode(string folderPath)
+        private static TreeNode MakeFolderNode(string folderPath)
         {
             var node = new TreeNode(
                 Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? folderPath)
@@ -67,7 +83,7 @@ namespace FileContentToolkit.Dialogs
             return node;
         }
 
-        private TreeNode MakeFileNode(string filePath)
+        private static TreeNode MakeFileNode(string filePath)
         {
             return new TreeNode(Path.GetFileName(filePath)) { Tag = new FileTag(filePath) };
         }
@@ -81,12 +97,29 @@ namespace FileContentToolkit.Dialogs
                 LoadChildren(e.Node, tag);
         }
 
+        // Reparse points are skipped: .NET does not detect reparse cycles, so a junction pointing
+        // at one of its own ancestors recurses without bound until PathTooLongException.
+        private static readonly EnumerationOptions TopLevelOptions = new()
+        {
+            IgnoreInaccessible = true,
+            RecurseSubdirectories = false,
+            AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.Hidden | FileAttributes.System
+        };
+
+        private static readonly EnumerationOptions RecursiveOptions = new()
+        {
+            IgnoreInaccessible = true,
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.Hidden | FileAttributes.System,
+            MaxRecursionDepth = 64
+        };
+
         private void LoadChildren(TreeNode node, FolderTag tag)
         {
             node.Nodes.Clear();
             try
             {
-                var dirs = Directory.EnumerateDirectories(tag.Path)
+                var dirs = Directory.EnumerateDirectories(tag.Path, "*", TopLevelOptions)
                                     .OrderBy(d => d, StringComparer.OrdinalIgnoreCase);
                 foreach (var d in dirs)
                 {
@@ -95,7 +128,7 @@ namespace FileContentToolkit.Dialogs
                     node.Nodes.Add(child);
                 }
 
-                IEnumerable<string> files = Directory.EnumerateFiles(tag.Path);
+                IEnumerable<string> files = Directory.EnumerateFiles(tag.Path, "*", TopLevelOptions);
                 if (chkExtFilter.Checked && _extensionFilter != null)
                     files = files.Where(f => _extensionFilter.Contains(Path.GetExtension(f)));
 
@@ -108,11 +141,11 @@ namespace FileContentToolkit.Dialogs
             }
             catch (UnauthorizedAccessException)
             {
-                node.Nodes.Add(new TreeNode("(access denied)") { ForeColor = Theme.SubtleText, Tag = Sentinel });
+                node.Nodes.Add(new TreeNode("(access denied)") { ForeColor = ThemeManager.Tokens.TextSecondary, Tag = Sentinel });
             }
             catch (Exception ex)
             {
-                node.Nodes.Add(new TreeNode($"(error: {ex.Message})") { ForeColor = Theme.SubtleText, Tag = Sentinel });
+                node.Nodes.Add(new TreeNode($"(error: {ex.Message})") { ForeColor = ThemeManager.Tokens.TextSecondary, Tag = Sentinel });
             }
             tag.Loaded = true;
         }
@@ -173,12 +206,7 @@ namespace FileContentToolkit.Dialogs
         {
             try
             {
-                var opts = new EnumerationOptions
-                {
-                    IgnoreInaccessible = true,
-                    RecurseSubdirectories = true
-                };
-                foreach (var f in Directory.EnumerateFiles(folder, "*", opts))
+                foreach (var f in Directory.EnumerateFiles(folder, "*", RecursiveOptions))
                 {
                     if (chkExtFilter.Checked && _extensionFilter != null &&
                         !_extensionFilter.Contains(Path.GetExtension(f))) continue;

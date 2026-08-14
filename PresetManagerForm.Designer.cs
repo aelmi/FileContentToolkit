@@ -1,7 +1,8 @@
 using System.Drawing;
 using System.Windows.Forms;
+using CodeShuttle.Theming;
 
-namespace FileContentToolkit.Dialogs
+namespace CodeShuttle.Dialogs
 {
     partial class PresetManagerForm
     {
@@ -13,7 +14,12 @@ namespace FileContentToolkit.Dialogs
 
         private Panel pnlBody;
         private ListBox lstPresets;
-        private Label lblDetails;
+        /// <summary>
+        /// A read-only multiline TextBox, not a Label. It is rebuilt wholesale whenever the
+        /// selection changes, and a Label raises no UI Automation event when its text is
+        /// replaced — so the details were never announced to a screen reader at all.
+        /// </summary>
+        private TextBox lblDetails;
         private Button btnLoad;
         private Button btnRename;
         private Button btnDelete;
@@ -36,7 +42,7 @@ namespace FileContentToolkit.Dialogs
             lblHeaderSubtitle = new Label();
             pnlBody = new Panel();
             lstPresets = new ListBox();
-            lblDetails = new Label();
+            lblDetails = new TextBox();
             btnLoad = new Button();
             btnRename = new Button();
             btnDelete = new Button();
@@ -51,60 +57,55 @@ namespace FileContentToolkit.Dialogs
             //
             // pnlHeader
             //
-            pnlHeader.BackColor = Color.FromArgb(0, 102, 204);
             pnlHeader.Controls.Add(lblHeaderTitle);
             pnlHeader.Controls.Add(lblHeaderSubtitle);
             pnlHeader.Dock = DockStyle.Top;
             pnlHeader.Location = new Point(0, 0);
             pnlHeader.Name = "pnlHeader";
-            pnlHeader.Padding = new Padding(20, 12, 20, 10);
-            pnlHeader.Size = new Size(720, 70);
+            pnlHeader.Padding = new Padding(20, 14, 20, 11);
+            pnlHeader.Size = new Size(720, 79);
             pnlHeader.TabIndex = 0;
             //
             // lblHeaderTitle
             //
             lblHeaderTitle.AutoSize = true;
-            lblHeaderTitle.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
-            lblHeaderTitle.ForeColor = Color.White;
-            lblHeaderTitle.Location = new Point(20, 12);
+            lblHeaderTitle.Location = new Point(20, 14);
             lblHeaderTitle.Name = "lblHeaderTitle";
             lblHeaderTitle.Text = "Manage Presets";
             //
             // lblHeaderSubtitle
             //
             lblHeaderSubtitle.AutoSize = true;
-            lblHeaderSubtitle.Font = new Font("Segoe UI", 9.5F, FontStyle.Italic);
-            lblHeaderSubtitle.ForeColor = Color.WhiteSmoke;
-            lblHeaderSubtitle.Location = new Point(20, 42);
+            lblHeaderSubtitle.Location = new Point(20, 48);
             lblHeaderSubtitle.Name = "lblHeaderSubtitle";
             lblHeaderSubtitle.Text = "Saved folder + extension configurations.";
             //
             // pnlBody
             //
-            pnlBody.BackColor = Color.White;
             pnlBody.Controls.Add(lstPresets);
             pnlBody.Controls.Add(lblDetails);
             pnlBody.Controls.Add(btnLoad);
             pnlBody.Controls.Add(btnRename);
             pnlBody.Controls.Add(btnDelete);
             pnlBody.Dock = DockStyle.Fill;
-            pnlBody.Location = new Point(0, 70);
+            pnlBody.Location = new Point(0, 79);
             pnlBody.Name = "pnlBody";
-            pnlBody.Padding = new Padding(20, 18, 20, 18);
-            pnlBody.Size = new Size(720, 440);
+            pnlBody.Padding = new Padding(20, 20, 20, 20);
+            pnlBody.Size = new Size(720, 499);
             pnlBody.TabIndex = 1;
             //
             // lstPresets
             //
             lstPresets.BorderStyle = BorderStyle.FixedSingle;
             lstPresets.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Bottom;
-            lstPresets.Font = new Font("Segoe UI", 9.5F);
             lstPresets.FormattingEnabled = true;
-            lstPresets.ItemHeight = 22;
-            lstPresets.Location = new Point(20, 20);
+            lstPresets.Location = new Point(20, 23);
             lstPresets.Name = "lstPresets";
-            lstPresets.Size = new Size(240, 330);
+            lstPresets.Size = new Size(240, 374);
             lstPresets.TabIndex = 0;
+            // The list has no visible caption, so without this it announces as an unnamed list.
+            lstPresets.AccessibleName = "Saved presets";
+            lstPresets.AccessibleDescription = "Choose a preset, then Load, Rename or Delete it.";
             lstPresets.SelectedIndexChanged += LstPresets_SelectedIndexChanged;
             lstPresets.DoubleClick += BtnLoad_Click;
             //
@@ -112,47 +113,41 @@ namespace FileContentToolkit.Dialogs
             //
             lblDetails.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
             lblDetails.BorderStyle = BorderStyle.FixedSingle;
-            lblDetails.BackColor = Color.FromArgb(245, 247, 250);
-            lblDetails.Font = new Font("Segoe UI", 9.5F);
-            lblDetails.ForeColor = Color.FromArgb(33, 37, 41);
-            lblDetails.Location = new Point(276, 20);
+            lblDetails.Location = new Point(276, 23);
             lblDetails.Name = "lblDetails";
-            lblDetails.Padding = new Padding(10);
-            lblDetails.Size = new Size(404, 282);
+            lblDetails.Size = new Size(404, 319);
             lblDetails.TabIndex = 1;
             lblDetails.Text = "(no preset selected)";
-            lblDetails.TextAlign = ContentAlignment.TopLeft;
-            lblDetails.AutoEllipsis = true;
+            lblDetails.Multiline = true;
+            lblDetails.ReadOnly = true;
+            lblDetails.ScrollBars = ScrollBars.Vertical;
+            lblDetails.WordWrap = true;
+            lblDetails.TabStop = true;
+            lblDetails.AccessibleName = "Preset details";
             //
             // btnLoad
             //
             btnLoad.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnLoad.BackColor = Color.FromArgb(40, 167, 69);
             btnLoad.Cursor = Cursors.Hand;
             btnLoad.FlatAppearance.BorderSize = 0;
             btnLoad.FlatStyle = FlatStyle.Flat;
-            btnLoad.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            btnLoad.ForeColor = Color.White;
-            btnLoad.Location = new Point(276, 314);
+            btnLoad.Location = new Point(276, 356);
             btnLoad.Name = "btnLoad";
-            btnLoad.Size = new Size(90, 36);
+            btnLoad.Size = new Size(90, 41);
             btnLoad.TabIndex = 2;
-            btnLoad.Text = "Load";
+            btnLoad.Text = "&Load";
             btnLoad.UseVisualStyleBackColor = false;
             btnLoad.Click += BtnLoad_Click;
             //
             // btnRename
             //
             btnRename.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnRename.BackColor = Color.FromArgb(51, 122, 183);
             btnRename.Cursor = Cursors.Hand;
             btnRename.FlatAppearance.BorderSize = 0;
             btnRename.FlatStyle = FlatStyle.Flat;
-            btnRename.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            btnRename.ForeColor = Color.White;
-            btnRename.Location = new Point(372, 314);
+            btnRename.Location = new Point(372, 356);
             btnRename.Name = "btnRename";
-            btnRename.Size = new Size(90, 36);
+            btnRename.Size = new Size(90, 41);
             btnRename.TabIndex = 3;
             btnRename.Text = "Rename";
             btnRename.UseVisualStyleBackColor = false;
@@ -161,15 +156,12 @@ namespace FileContentToolkit.Dialogs
             // btnDelete
             //
             btnDelete.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnDelete.BackColor = Color.FromArgb(220, 53, 69);
             btnDelete.Cursor = Cursors.Hand;
             btnDelete.FlatAppearance.BorderSize = 0;
             btnDelete.FlatStyle = FlatStyle.Flat;
-            btnDelete.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            btnDelete.ForeColor = Color.White;
-            btnDelete.Location = new Point(468, 314);
+            btnDelete.Location = new Point(468, 356);
             btnDelete.Name = "btnDelete";
-            btnDelete.Size = new Size(90, 36);
+            btnDelete.Size = new Size(90, 41);
             btnDelete.TabIndex = 4;
             btnDelete.Text = "Delete";
             btnDelete.UseVisualStyleBackColor = false;
@@ -177,46 +169,43 @@ namespace FileContentToolkit.Dialogs
             //
             // pnlBottom
             //
-            pnlBottom.BackColor = Color.White;
             pnlBottom.Controls.Add(btnClose);
             pnlBottom.Dock = DockStyle.Bottom;
-            pnlBottom.Location = new Point(0, 510);
+            pnlBottom.Location = new Point(0, 578);
             pnlBottom.Name = "pnlBottom";
-            pnlBottom.Padding = new Padding(20, 12, 20, 12);
-            pnlBottom.Size = new Size(720, 60);
+            pnlBottom.Padding = new Padding(20, 14, 20, 14);
+            pnlBottom.Size = new Size(720, 68);
             pnlBottom.TabIndex = 2;
             //
             // btnClose
             //
             btnClose.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnClose.BackColor = Color.FromArgb(108, 117, 125);
             btnClose.Cursor = Cursors.Hand;
             btnClose.DialogResult = DialogResult.Cancel;
             btnClose.FlatAppearance.BorderSize = 0;
             btnClose.FlatStyle = FlatStyle.Flat;
-            btnClose.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            btnClose.ForeColor = Color.White;
-            btnClose.Location = new Point(610, 12);
+            btnClose.Location = new Point(610, 14);
             btnClose.Name = "btnClose";
-            btnClose.Size = new Size(90, 36);
+            btnClose.Size = new Size(90, 40);
             btnClose.TabIndex = 0;
             btnClose.Text = "Close";
             btnClose.UseVisualStyleBackColor = false;
             //
             // PresetManagerForm
             //
+            // Enter on the list now loads the highlighted preset. Double-click was the only way
+            // to do it, which is no way at all without a mouse.
+            AcceptButton = btnLoad;
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = Color.FromArgb(245, 247, 250);
             CancelButton = btnClose;
-            ClientSize = new Size(720, 570);
+            ClientSize = new Size(720, 646);
             Controls.Add(pnlBody);
             Controls.Add(pnlBottom);
             Controls.Add(pnlHeader);
-            Font = new Font("Segoe UI", 9.5F);
             FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = true;
-            MinimumSize = new Size(620, 440);
+            MinimumSize = new Size(620, 499);
             Name = "PresetManagerForm";
             StartPosition = FormStartPosition.CenterParent;
             Text = "Manage Presets";
@@ -225,6 +214,21 @@ namespace FileContentToolkit.Dialogs
             pnlHeader.PerformLayout();
             pnlBody.ResumeLayout(false);
             pnlBottom.ResumeLayout(false);
+
+            // Theme roles. Colours and fonts are resolved from ThemeTokens /
+            // ThemeFonts at runtime; anything not listed here takes the default
+            // for its control type.
+            ThemeRoles.Set(btnClose, ThemeRole.ButtonSecondary, FontRole.BodyBold);
+            ThemeRoles.Set(btnDelete, ThemeRole.ButtonDanger, FontRole.BodyBold);
+            ThemeRoles.Set(btnLoad, ThemeRole.ButtonSuccess, FontRole.BodyBold);
+            ThemeRoles.Set(btnRename, ThemeRole.ButtonAccent, FontRole.BodyBold);
+            ThemeRoles.Set(lblDetails, ThemeRole.Surface, FontRole.Body);
+            ThemeRoles.Set(lblHeaderSubtitle, FontRole.BodyItalic);
+            ThemeRoles.Set(lblHeaderTitle, FontRole.Title);
+            ThemeRoles.Set(lstPresets, FontRole.Body);
+            ThemeRoles.Set(pnlBody, ThemeRole.SurfaceAlt);
+            ThemeRoles.Set(pnlBottom, ThemeRole.SurfaceAlt);
+            ThemeRoles.Set(pnlHeader, ThemeRole.Header);
             ResumeLayout(false);
         }
 

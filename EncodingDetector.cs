@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace FileContentToolkit.Filters
+namespace CodeShuttle.Filters
 {
     public static class EncodingDetector
     {

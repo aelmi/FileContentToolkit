@@ -2,14 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
-using FileContentToolkit.UI;
+using CodeShuttle.Theming;
+using CodeShuttle.UI;
 
-namespace FileContentToolkit.Dialogs
+namespace CodeShuttle.Dialogs
 {
-    public partial class FindReplaceForm : Form
+    public partial class FindReplaceForm : ThemedForm
     {
         private readonly RichTextBox _target;
         private readonly Action<string>? _onSearchUsed;
+        private readonly System.Windows.Forms.Timer _matchDebounce = new() { Interval = 250 };
+
+        /// <summary>
+        /// A user-supplied pattern is untrusted: "(a+)+$" backtracks catastrophically and used to
+        /// hang the UI permanently, because the regex had no timeout at all.
+        /// </summary>
+        internal static readonly TimeSpan MatchTimeout = TimeSpan.FromSeconds(2);
 
         public FindReplaceForm(RichTextBox target,
                                IEnumerable<string>? recentSearches = null,
@@ -23,11 +31,6 @@ namespace FileContentToolkit.Dialogs
 
             InitializeComponent();
 
-            if (Theme.AppIcon != null) Icon = Theme.AppIcon;
-            Theme.AttachHover(btnNext, btnNext.BackColor);
-            Theme.AttachHover(btnPrev, btnPrev.BackColor);
-            Theme.AttachHover(btnReplace, btnReplace.BackColor);
-            Theme.AttachHover(btnReplaceAll, btnReplaceAll.BackColor);
 
             if (recentSearches != null)
                 foreach (var r in recentSearches) cmbFind.Items.Add(r);
@@ -35,6 +38,13 @@ namespace FileContentToolkit.Dialogs
             chkRegex.Checked = initialRegex;
             chkCase.Checked = initialCase;
             chkWord.Checked = initialWord;
+
+            _matchDebounce.Tick += (s, e) =>
+            {
+                _matchDebounce.Stop();
+                UpdateMatchCount();
+            };
+            Disposed += (s, e) => _matchDebounce.Dispose();
         }
 
         public void SetInitialQuery(string text)
@@ -47,10 +57,20 @@ namespace FileContentToolkit.Dialogs
 
         // -------------------- designer-wired handlers --------------------
 
-        private void CmbFind_TextChanged(object? sender, EventArgs e) => UpdateMatchCount();
-        private void ChkCase_CheckedChanged(object? sender, EventArgs e) => UpdateMatchCount();
-        private void ChkWord_CheckedChanged(object? sender, EventArgs e) => UpdateMatchCount();
-        private void ChkRegex_CheckedChanged(object? sender, EventArgs e) => UpdateMatchCount();
+        private void CmbFind_TextChanged(object? sender, EventArgs e) => DebounceMatchCount();
+        private void ChkCase_CheckedChanged(object? sender, EventArgs e) => DebounceMatchCount();
+        private void ChkWord_CheckedChanged(object? sender, EventArgs e) => DebounceMatchCount();
+        private void ChkRegex_CheckedChanged(object? sender, EventArgs e) => DebounceMatchCount();
+
+        /// <summary>
+        /// The live match count used to run over the whole output on every keystroke, so a
+        /// half-typed regex was evaluated repeatedly against megabytes of text.
+        /// </summary>
+        private void DebounceMatchCount()
+        {
+            _matchDebounce.Stop();
+            _matchDebounce.Start();
+        }
 
         private void BtnNext_Click(object? sender, EventArgs e) => FindOne(forward: true);
         private void BtnPrev_Click(object? sender, EventArgs e) => FindOne(forward: false);
@@ -59,11 +79,10 @@ namespace FileContentToolkit.Dialogs
 
         private void FindReplaceForm_KeyDown(object? sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Escape)
-            {
-                Close();
-            }
-            else if (e.KeyCode == Keys.F3)
+            // The Escape branch that used to live here never set e.Handled, unlike the F3 branch
+            // immediately below it. Escape is now the form's CancelButton, handled by the
+            // framework.
+            if (e.KeyCode == Keys.F3)
             {
                 FindOne(forward: !e.Shift);
                 e.Handled = true;
@@ -93,16 +112,26 @@ namespace FileContentToolkit.Dialogs
                     hits.Add((m.Index, m.Length));
             }
             catch (ArgumentException) { }
+            catch (RegexMatchTimeoutException) { }
             return (hits.Count, hits);
         }
 
-        private static Regex BuildRegex(string pattern, bool isRegex, bool matchCase, bool wholeWord)
+        internal static Regex BuildRegex(string pattern, bool isRegex, bool matchCase, bool wholeWord)
         {
             var options = RegexOptions.Multiline;
             if (!matchCase) options |= RegexOptions.IgnoreCase;
             var rx = isRegex ? pattern : Regex.Escape(pattern);
             if (wholeWord) rx = $@"\b(?:{rx})\b";
-            return new Regex(rx, options);
+
+            if (!isRegex)
+            {
+                // An escaped literal cannot backtrack, so the non-backtracking engine is safe
+                // here and removes the failure mode entirely.
+                try { return new Regex(rx, options | RegexOptions.NonBacktracking, MatchTimeout); }
+                catch (NotSupportedException) { /* fall through */ }
+            }
+
+            return new Regex(rx, options, MatchTimeout);
         }
 
         private void FindOne(bool forward)
@@ -164,6 +193,11 @@ namespace FileContentToolkit.Dialogs
                     lblStatus.Text = "Regex error: " + ex.Message;
                     return;
                 }
+                catch (RegexMatchTimeoutException)
+                {
+                    lblStatus.Text = "That pattern took too long to evaluate and was abandoned.";
+                    return;
+                }
             }
             FindOne(forward: true);
             _onSearchUsed?.Invoke(pattern);
@@ -186,7 +220,7 @@ namespace FileContentToolkit.Dialogs
                 var newText = chkRegex.Checked
                     ? regex.Replace(text, replacement)
                     : regex.Replace(text, _ => replacement);
-                int count = regex.Matches(text).Count;
+                int count = regex.Count(text);
                 _target.Text = newText;
                 lblStatus.Text = $"Replaced {count} occurrence{(count == 1 ? "" : "s")}";
                 _onSearchUsed?.Invoke(pattern);
@@ -194,6 +228,10 @@ namespace FileContentToolkit.Dialogs
             catch (ArgumentException ex)
             {
                 lblStatus.Text = "Regex error: " + ex.Message;
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                lblStatus.Text = "That pattern took too long to evaluate and was abandoned.";
             }
         }
     }

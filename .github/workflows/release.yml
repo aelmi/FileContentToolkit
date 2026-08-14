@@ -1,0 +1,179 @@
+name: Release
+
+# Tag-driven. `git tag v1.2.3 && git push --tags` builds, tests, packages and
+# opens a DRAFT release. Nothing is published to users until a human presses
+# Publish, which is deliberate: the update checker reads releases/latest, and
+# that endpoint ignores drafts.
+#
+# workflow_dispatch is provided so the whole pipeline can be exercised without
+# minting a tag.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (no leading v), e.g. 1.0.0'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write   # required to create the draft release
+
+jobs:
+  release:
+    # windows-latest already ships Inno Setup 6 — no install step needed.
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so the build is reproducible and source-linkable.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Derive version
+        id: version
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $raw = '${{ github.event.inputs.version }}'
+          } else {
+            $raw = '${{ github.ref_name }}'   # e.g. v1.2.3
+          }
+          # UpdateChecker.ParseVersion already strips a leading 'v' and truncates
+          # at '-' or '+'. Mirror that here so the tag and the stamped version
+          # can never disagree about what release this is.
+          $informational = $raw -replace '^v', ''
+          $numeric = $informational -replace '[-+].*$', ''
+          if ($numeric -notmatch '^\d+(\.\d+){0,3}$') {
+            throw "Tag '$raw' does not reduce to a numeric version (got '$numeric')."
+          }
+          # FileVersion carries the CI run number; AssemblyVersion stays pinned
+          # at Major.0.0.0 in Directory.Build.props for binding stability.
+          $parts = $numeric.Split('.')
+          while ($parts.Count -lt 3) { $parts += '0' }
+          $fileVersion = "$($parts[0]).$($parts[1]).$($parts[2]).${{ github.run_number }}"
+
+          "informational=$informational" >> $env:GITHUB_OUTPUT
+          "numeric=$numeric"             >> $env:GITHUB_OUTPUT
+          "fileVersion=$fileVersion"     >> $env:GITHUB_OUTPUT
+          Write-Host "informational=$informational  numeric=$numeric  fileVersion=$fileVersion"
+
+      - name: Restore
+        run: dotnet restore CodeShuttle.sln
+
+      # --no-incremental is mandatory even on a fresh runner: it is the only
+      # form of the command that is honest about warnings, and making CI differ
+      # from the documented local command invites a divergence nobody notices.
+      - name: Build
+        run: dotnet build CodeShuttle.sln -c Release --no-incremental --no-restore -warnaserror
+
+      # Tests run BEFORE publish. A failing test must stop the pipeline before
+      # any artifact exists that someone could be tempted to ship.
+      - name: Test
+        run: dotnet test tests/CodeShuttle.Tests -c Release --no-build --verbosity normal
+
+      # Single-file, self-contained, ReadyToRun, x64.
+      # NOT trimmed and NOT AOT: both are hard-blocked for Windows Forms
+      # (NETSDK1175), and this app uses reflection-based JSON deserialization
+      # that trimming would silently reduce to default-valued objects.
+      # InvariantGlobalization is deliberately unset — see build\publish.ps1.
+      - name: Publish
+        run: >
+          dotnet publish CodeShuttle.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:PublishReadyToRun=true
+          -p:DebugType=embedded
+          -p:Version=${{ steps.version.outputs.numeric }}
+          -p:FileVersion=${{ steps.version.outputs.fileVersion }}
+          -p:InformationalVersion=${{ steps.version.outputs.informational }}
+          -o publish/win-x64
+
+      - name: Stage documents beside the exe
+        shell: pwsh
+        run: |
+          foreach ($doc in 'LICENSE.txt','THIRD-PARTY-NOTICES.txt','PRIVACY.md','README.md','CHANGELOG.md') {
+            Copy-Item $doc -Destination publish/win-x64 -Force
+          }
+
+      # --- Code signing: deferred, blocked on business identity ------------
+      # Not a code task. See CHANGELOG.md. When a certificate is available,
+      # uncomment this step and add CODESHUTTLE_PFX_BASE64 / _PASSWORD as
+      # repository secrets. It sits here on purpose: after publish, before the
+      # installer is packaged, so the installer wraps an already-signed exe.
+      # The installer itself is signed by the SignTool directive in the .iss.
+      #
+      # - name: Sign application
+      #   shell: pwsh
+      #   env:
+      #     PFX_BASE64: ${{ secrets.CODESHUTTLE_PFX_BASE64 }}
+      #     PFX_PASSWORD: ${{ secrets.CODESHUTTLE_PFX_PASSWORD }}
+      #   run: |
+      #     $pfx = Join-Path $env:RUNNER_TEMP 'cert.pfx'
+      #     [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
+      #     try {
+      #       & signtool sign /fd SHA256 `
+      #         /tr http://timestamp.digicert.com /td SHA256 `
+      #         /f $pfx /p $env:PFX_PASSWORD `
+      #         publish/win-x64/CodeShuttle.exe
+      #       if ($LASTEXITCODE -ne 0) { throw 'Signing failed.' }
+      #     } finally {
+      #       Remove-Item $pfx -Force -ErrorAction SilentlyContinue
+      #     }
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            throw "ISCC.exe not found at $iscc. windows-latest is expected to ship Inno Setup 6; if the image changed, add an install step."
+          }
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          & $iscc "/DAppVersion=${{ steps.version.outputs.numeric }}" "/Oartifacts" "installer\CodeShuttle.iss"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed." }
+          Get-ChildItem artifacts
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodeShuttle-${{ steps.version.outputs.informational }}
+          path: |
+            publish/win-x64/CodeShuttle.exe
+            artifacts/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      # Draft, always. releases/latest ignores drafts, so nothing reaches the
+      # update checker until a human publishes.
+      #
+      # prerelease is set from the tag: a tag carrying a '-' (v1.0.0-beta.1) is
+      # a prerelease. UpdateChecker filters on that flag, so a beta published by
+      # mistake is still not offered to stable users — belt and braces.
+      - name: Create draft release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          name: CodeShuttle ${{ steps.version.outputs.informational }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/*.exe
+          # Note: github.repository is used implicitly by the action rather than
+          # a hardcoded owner/name. The repository is expected to be renamed
+          # from FileContentToolkit to CodeShuttle before release (see
+          # CHANGELOG.md), and this workflow works correctly either way.

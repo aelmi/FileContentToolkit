@@ -1,0 +1,54 @@
+CodeShuttle — Third-Party Notices
+=================================
+
+CodeShuttle includes no third-party NuGet packages.
+
+The application is built against, and redistributes portions of, the .NET
+runtime and the Windows Forms libraries. Their notices follow.
+
+
+.NET and Windows Forms
+----------------------
+Copyright (c) .NET Foundation and Contributors.
+Licensed under the MIT License.
+https://github.com/dotnet/runtime/blob/main/LICENSE.TXT
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+
+Build-time only (not redistributed)
+-----------------------------------
+The test project references xunit, xunit.runner.visualstudio and
+Microsoft.NET.Test.Sdk. These are development dependencies; they are not part
+of the shipped application and are not redistributed.
+
+    xunit                          Apache-2.0
+    xunit.runner.visualstudio      Apache-2.0
+    Microsoft.NET.Test.Sdk         MIT
+
+
+Segoe UI
+--------
+CodeShuttle uses the Segoe UI typeface supplied with Windows. The font is not
+redistributed; it is used as installed by the operating system.
+
+
+If a third-party component is added to the shipped application, both this file
+and the "Third-party notices" section of the in-application About dialog must
+be updated. About renders this file directly, so they cannot drift apart.

@@ -7,13 +7,15 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using FileContentToolkit.Diagnostics;
-using FileContentToolkit.Dialogs;
-using FileContentToolkit.Settings;
-using FileContentToolkit.UI;
-using FileContentToolkit.Watcher;
+using CodeShuttle.Controls;
+using CodeShuttle.Theming;
+using CodeShuttle.Diagnostics;
+using CodeShuttle.Dialogs;
+using CodeShuttle.Settings;
+using CodeShuttle.UI;
+using CodeShuttle.Watcher;
 
-namespace FileContentToolkit
+namespace CodeShuttle
 {
     // All extra UI elements live in MainForm.Designer.cs now.
     // This partial only holds the cross-cutting plumbing: settings persistence,
@@ -31,19 +33,11 @@ namespace FileContentToolkit
             ApplySettingsToService();
 
             // Restore UI state from settings
-            chkRegex.Checked = _settings.RegexSearch;
-            chkCase.Checked = _settings.CaseSensitiveSearch;
-            chkWord.Checked = _settings.WholeWordSearch;
+            searchBox.UseRegex = _settings.RegexSearch;
+            searchBox.MatchCase = _settings.CaseSensitiveSearch;
+            searchBox.WholeWord = _settings.WholeWordSearch;
             chkWatch.Checked = _settings.WatchFolderForChanges;
 
-            // Hover effects on the new toolbar buttons
-            Theme.AttachHover(btnTree, btnTree.BackColor);
-            Theme.AttachHover(btnRecentFolders, btnRecentFolders.BackColor);
-            Theme.AttachHover(btnOptions, btnOptions.BackColor);
-            Theme.AttachHover(btnSavePreset, btnSavePreset.BackColor);
-            Theme.AttachHover(btnLoadPreset, btnLoadPreset.BackColor);
-            Theme.AttachHover(btnSearchRecents, btnSearchRecents.BackColor);
-            Theme.AttachHover(btnFindReplace, btnFindReplace.BackColor);
 
             // Restore last folder
             if (string.IsNullOrEmpty(txtFolderPath.Text) && _settings.RecentFolders.Count > 0)
@@ -54,7 +48,16 @@ namespace FileContentToolkit
             }
 
             // Folder watcher fires on the watcher thread; marshal to UI thread.
-            _folderWatcher.Changed += () => BeginInvoke(new Action(() => _ = RefreshFilesInBackground()));
+            _folderWatcher.Changed += () => SafeBeginInvoke(() => _ = RefreshFilesInBackground());
+            _folderWatcher.Failed += reason => SafeBeginInvoke(() =>
+            {
+                // The watcher used to die silently on buffer overflow with the checkbox still
+                // ticked, so the user believed changes were being tracked when they were not.
+                chkWatch.Checked = false;
+                _settings.WatchFolderForChanges = false;
+                _settings.SaveDebounced();
+                sbScanStatus.Text = "Folder watching stopped: " + reason;
+            });
             RestartWatcherIfEnabled();
 
             // Open Find/Replace from the output editor with Ctrl+F or Ctrl+H
@@ -67,21 +70,41 @@ namespace FileContentToolkit
                 }
             };
 
-            // Save on close
-            FormClosing += (s, e) =>
+            // Window geometry and splitter, restored once the handle exists and the layout has
+            // settled. Doing it in the constructor would clamp SplitterDistance against a width
+            // the form has not been given yet.
+            Load += (s, e) =>
             {
-                _settings.RegexSearch = chkRegex.Checked;
-                _settings.CaseSensitiveSearch = chkCase.Checked;
-                _settings.WholeWordSearch = chkWord.Checked;
+                RestoreWindowPlacement();
+                UpdateEmptyStates();
+            };
+            splitMain.SplitterMoved += SplitMain_SplitterMoved;
+
+            // Save on close. FormClosed, not FormClosing: FormClosing can be cancelled, and the
+            // watcher was being disposed there — leaving the app running with a dead watcher.
+            FormClosed += (s, e) =>
+            {
+                _settings.RegexSearch = searchBox.UseRegex;
+                _settings.CaseSensitiveSearch = searchBox.MatchCase;
+                _settings.WholeWordSearch = searchBox.WholeWord;
                 _settings.WatchFolderForChanges = chkWatch.Checked;
-                _settings.Save();
+                SaveWindowPlacement();
+                _settings.FlushPendingSave();
                 _folderWatcher.Dispose();
             };
 
-            // Apply saved dark-mode preference (the menu CheckedChanged will fire and re-apply
-            // through MnuViewDarkMode_CheckedChanged — that's the single code path).
-            mnuViewDarkMode.Checked = _settings.DarkMode;
-            if (_settings.DarkMode) Theme.Apply(this, true);
+            // A corrupt settings file used to be swallowed, silently returning defaults — which
+            // to the user looks exactly like "the app lost all my presets".
+            if (AppSettings.LastLoadError != null)
+            {
+                Shown += (s, e) => MessageBox.Show(this, AppSettings.LastLoadError,
+                    "Settings", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+
+            // The palette has to be live before the first paint, so it is initialised here
+            // rather than waiting for the menu item's CheckedChanged to fire.
+            ThemeManager.Initialize(_settings.Mode);
+            mnuViewDarkMode.Checked = _settings.Mode == ThemeMode.Dark;
 
             // Background update check (non-blocking; never throws).
             _ = CheckForUpdatesAsync(silentIfNone: true);
@@ -89,9 +112,27 @@ namespace FileContentToolkit
 
         private void MnuViewDarkMode_CheckedChanged(object? sender, EventArgs e)
         {
-            _settings.DarkMode = mnuViewDarkMode.Checked;
-            Theme.Apply(this, mnuViewDarkMode.Checked);
-            _settings.Save();
+            // ThemeManager raises ThemeChanged, which every open ThemedForm is subscribed to,
+            // so dialogs already on screen repaint too rather than staying in the old palette.
+            _settings.Mode = mnuViewDarkMode.Checked ? ThemeMode.Dark : ThemeMode.Light;
+            ThemeManager.Mode = _settings.Mode;
+            _settings.SaveDebounced();
+        }
+
+        /// <summary>
+        /// BeginInvoke races form disposal: the update check can still be in flight through its
+        /// 8-second timeout when the user closes the window, and the IsDisposed test alone is a
+        /// check-then-act race.
+        /// </summary>
+        private void SafeBeginInvoke(Action action)
+        {
+            try
+            {
+                if (IsDisposed || !IsHandleCreated) return;
+                BeginInvoke(action);
+            }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
         }
 
         private async Task CheckForUpdatesAsync(bool silentIfNone)
@@ -99,27 +140,28 @@ namespace FileContentToolkit
             var info = await UpdateChecker.CheckAsync();
             _latestUpdate = info;
 
-            if (IsDisposed) return;
-
             if (info?.UpdateAvailable == true)
             {
-                BeginInvoke(new Action(() =>
+                SafeBeginInvoke(() =>
                 {
                     sbUpdateNotice.Text = $"Update available — {info.TagName}";
                     sbUpdateNotice.ToolTipText = info.HtmlUrl;
                     sbUpdateNotice.Visible = true;
-                }));
+                });
             }
             else if (!silentIfNone)
             {
-                BeginInvoke(new Action(() =>
+                SafeBeginInvoke(() =>
                 {
-                    var msg = info == null
-                        ? "Could not contact GitHub. Try again later."
-                        : $"You're up to date.\nLatest release: {info.TagName}\nCurrent: {info.Current}";
-                    MessageBox.Show(this, msg, "Check for updates",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }));
+                    // A failed check is a failure and gets a dialog; being up to date is a
+                    // confirmation and stays a toast.
+                    if (info == null)
+                        AppMessage.Error(this, "Update check failed",
+                            "Could not contact GitHub to check for updates. Try again later.");
+                    else
+                        Toast.Show(this, $"You're up to date (latest release {info.TagName}).",
+                            Toast.ToastKind.Info);
+                });
             }
         }
 
@@ -131,6 +173,8 @@ namespace FileContentToolkit
         private void SbUpdateNotice_Click(object? sender, EventArgs e)
         {
             if (_latestUpdate == null || string.IsNullOrEmpty(_latestUpdate.HtmlUrl)) return;
+            if (!IsTrustedReleaseUrl(_latestUpdate.HtmlUrl)) return;
+
             try
             {
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
@@ -142,12 +186,27 @@ namespace FileContentToolkit
             catch { /* ignore */ }
         }
 
+        /// <summary>
+        /// The URL arrives as JSON from a remote server and is handed to a shell execute, so it
+        /// must be pinned to https on github.com. Without this, anyone able to serve that JSON
+        /// could hand back a file:// path, a UNC share, or a registered protocol handler.
+        /// </summary>
+        internal static bool IsTrustedReleaseUrl(string? url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return false;
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+            if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal)) return false;
+            return string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".github.com", StringComparison.OrdinalIgnoreCase);
+        }
+
         private void ApplySettingsToService()
         {
             fileService.MaxFileSizeBytes = _settings.MaxFileSizeBytes;
             fileService.SkipBinaryFiles = _settings.SkipBinaryFiles;
             fileService.AutoDetectEncoding = _settings.AutoDetectEncoding;
             fileService.UseGitIgnoreFiles = _settings.UseGitIgnoreFiles;
+            fileService.UseDockerIgnoreFiles = _settings.UseDockerIgnoreFiles;
         }
 
         private void RestartWatcherIfEnabled()
@@ -166,8 +225,8 @@ namespace FileContentToolkit
             var folder = txtFolderPath.Text?.Trim() ?? "";
             if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
             {
-                MessageBox.Show(this, "Pick a folder first (use Browse or the path box).", "Tree picker",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                AppMessage.Warning(this, "No folder selected",
+                    "Pick a folder first (use Browse or the path box).");
                 return;
             }
             using var dlg = new FolderTreePickerForm(folder, fileService.Extensions);
@@ -214,7 +273,8 @@ namespace FileContentToolkit
         private void BtnSearchRecents_Click(object? sender, EventArgs e)
         {
             PopulateRecentSlots(_settings.RecentSearches, RecentSearchSlots(), mnuRsEmpty, mnuRsSep, mnuRsClear);
-            cmsRecentSearches.Show(btnSearchRecents, new Point(0, btnSearchRecents.Height));
+            var anchor = searchBox.RecentsAnchor;
+            cmsRecentSearches.Show(anchor, new Point(0, anchor.Height));
         }
 
         private void BtnLoadPreset_Click(object? sender, EventArgs e)
@@ -240,7 +300,7 @@ namespace FileContentToolkit
             mnuPs23, mnuPs24, mnuPs25
         };
 
-        private static void PopulateRecentSlots(IReadOnlyList<string> data,
+        private static void PopulateRecentSlots(List<string> data,
                                                 ToolStripMenuItem[] slots,
                                                 ToolStripMenuItem emptyItem,
                                                 ToolStripSeparator separator,
@@ -300,7 +360,7 @@ namespace FileContentToolkit
         private void MnuRecentSearchSlot_Click(object? sender, EventArgs e)
         {
             if (sender is ToolStripMenuItem mi && mi.Tag is string term)
-                txtSearchFiles.Text = term;
+                searchBox.Query = term;
         }
 
         private void MnuPresetSlot_Click(object? sender, EventArgs e)
@@ -370,7 +430,7 @@ namespace FileContentToolkit
                 IncludeSubfolders = chkIncludeSubfolders.Checked
             });
             _settings.Save();
-            MessageBox.Show(this, "Preset saved.", "Save preset", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            Toast.Show(this, $"Preset \"{name}\" saved.");
         }
 
 
@@ -381,8 +441,12 @@ namespace FileContentToolkit
             fileService.IgnorePatterns.AddRange(p.IgnorePatterns);
             fileService.SetIncludeSubfolders(p.IncludeSubfolders);
             chkIncludeSubfolders.Checked = p.IncludeSubfolders;
-            txtFolderPath.Text = p.FolderPath; // triggers debounced refresh
+            txtFolderPath.Text = p.FolderPath; // triggers debounced refresh WHEN the path changes
             SyncUIWithService();
+
+            // If the preset's folder equals the current one, TextChanged never fires, so no
+            // rescan happens and the OLD file list is redisplayed against the NEW extension set.
+            _ = RefreshFilesInBackground();
         }
 
         private void ChkWatch_CheckedChanged(object? sender, EventArgs e)
@@ -410,17 +474,17 @@ namespace FileContentToolkit
                 _findReplaceForm = new FindReplaceForm(
                     rtbOutput,
                     _settings.RecentSearches,
-                    initialRegex: chkRegex.Checked,
-                    initialCase: chkCase.Checked,
-                    initialWord: chkWord.Checked,
+                    initialRegex: searchBox.UseRegex,
+                    initialCase: searchBox.MatchCase,
+                    initialWord: searchBox.WholeWord,
                     onSearchUsed: term =>
                     {
                         _settings.AddRecentSearch(term);
-                        _settings.Save();
+                        _settings.SaveDebounced();
                     });
                 _findReplaceForm.Owner = this;
             }
-            _findReplaceForm.SetInitialQuery(txtSearchFiles.Text);
+            _findReplaceForm.SetInitialQuery(searchBox.Query);
             if (!_findReplaceForm.Visible) _findReplaceForm.Show(this);
             else _findReplaceForm.BringToFront();
         }

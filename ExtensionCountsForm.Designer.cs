@@ -1,4 +1,6 @@
-﻿namespace FileContentToolkit
+using CodeShuttle.Theming;
+
+namespace CodeShuttle
 {
     partial class ExtensionCountsForm
     {
@@ -46,10 +48,9 @@
             ((System.ComponentModel.ISupportInitialize)gridCounts).BeginInit();
             pnlBottom.SuspendLayout();
             SuspendLayout();
-            // 
+            //
             // pnlHeader
-            // 
-            pnlHeader.BackColor = Color.FromArgb(0, 102, 204);
+            //
             pnlHeader.Controls.Add(lblHeaderTitle);
             pnlHeader.Controls.Add(btnRefresh);
             pnlHeader.Controls.Add(lblPath);
@@ -57,161 +58,137 @@
             pnlHeader.Dock = DockStyle.Top;
             pnlHeader.Location = new Point(0, 0);
             pnlHeader.Name = "pnlHeader";
-            pnlHeader.Padding = new Padding(20, 15, 20, 10);
-            pnlHeader.Size = new Size(720, 130);
+            pnlHeader.Padding = new Padding(13, 9, 13, 6);
+            pnlHeader.Size = new Size(458, 79);
             pnlHeader.TabIndex = 0;
-            // 
+            //
             // lblHeaderTitle
-            // 
+            //
             lblHeaderTitle.AutoSize = true;
-            lblHeaderTitle.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
-            lblHeaderTitle.ForeColor = Color.White;
-            lblHeaderTitle.Location = new Point(20, 15);
+            lblHeaderTitle.Location = new Point(13, 9);
             lblHeaderTitle.Name = "lblHeaderTitle";
-            lblHeaderTitle.Size = new Size(241, 32);
+            lblHeaderTitle.Size = new Size(153, 20);
             lblHeaderTitle.TabIndex = 0;
             lblHeaderTitle.Text = "Extension Summary";
-            // 
+            //
             // btnRefresh
-            // 
+            //
             btnRefresh.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnRefresh.BackColor = Color.FromArgb(51, 122, 183);
             btnRefresh.FlatAppearance.BorderSize = 0;
             btnRefresh.FlatStyle = FlatStyle.Flat;
-            btnRefresh.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            btnRefresh.ForeColor = Color.White;
-            btnRefresh.Location = new Point(600, 15);
+            btnRefresh.Location = new Point(382, 9);
             btnRefresh.Name = "btnRefresh";
-            btnRefresh.Size = new Size(100, 40);
+            btnRefresh.Size = new Size(63, 24);
             btnRefresh.TabIndex = 1;
             btnRefresh.Text = "Refresh";
             btnRefresh.UseVisualStyleBackColor = false;
-            // 
+            //
             // lblPath
-            // 
+            //
             lblPath.AutoSize = true;
-            lblPath.Font = new Font("Segoe UI", 10F);
-            lblPath.ForeColor = Color.WhiteSmoke;
-            lblPath.Location = new Point(20, 55);
+            lblPath.Location = new Point(13, 33);
             lblPath.Name = "lblPath";
-            lblPath.Size = new Size(85, 28);
+            lblPath.Size = new Size(54, 17);
             lblPath.TabIndex = 2;
             lblPath.Text = "Folder: -";
-            // 
+            //
             // lblSubfolders
-            // 
+            //
             lblSubfolders.AutoSize = true;
-            lblSubfolders.Font = new Font("Segoe UI", 9.5F, FontStyle.Italic);
-            lblSubfolders.ForeColor = Color.WhiteSmoke;
-            lblSubfolders.Location = new Point(20, 85);
+            lblSubfolders.Location = new Point(13, 52);
             lblSubfolders.Name = "lblSubfolders";
-            lblSubfolders.Size = new Size(177, 25);
+            lblSubfolders.Size = new Size(112, 15);
             lblSubfolders.TabIndex = 3;
             lblSubfolders.Text = "Include subfolders: -";
-            // 
+            //
             // gridCounts
-            // 
+            //
             gridCounts.AllowUserToAddRows = false;
             gridCounts.AllowUserToDeleteRows = false;
             gridCounts.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            gridCounts.BackgroundColor = Color.White;
             gridCounts.BorderStyle = BorderStyle.None;
             dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle1.BackColor = Color.FromArgb(0, 102, 204);
-            dataGridViewCellStyle1.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            dataGridViewCellStyle1.ForeColor = Color.White;
-            dataGridViewCellStyle1.SelectionBackColor = Color.FromArgb(51, 122, 183);
-            dataGridViewCellStyle1.SelectionForeColor = Color.White;
             dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
             gridCounts.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
             gridCounts.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = SystemColors.Window;
-            dataGridViewCellStyle2.Font = new Font("Segoe UI", 9.5F);
-            dataGridViewCellStyle2.ForeColor = Color.Black;
-            dataGridViewCellStyle2.SelectionBackColor = Color.FromArgb(51, 122, 183);
-            dataGridViewCellStyle2.SelectionForeColor = Color.White;
             dataGridViewCellStyle2.WrapMode = DataGridViewTriState.False;
             gridCounts.DefaultCellStyle = dataGridViewCellStyle2;
             gridCounts.Dock = DockStyle.Fill;
             gridCounts.EnableHeadersVisualStyles = false;
-            gridCounts.Location = new Point(0, 130);
+            gridCounts.Location = new Point(0, 79);
             gridCounts.Name = "gridCounts";
             gridCounts.ReadOnly = true;
             gridCounts.RowHeadersVisible = false;
-            gridCounts.RowHeadersWidth = 62;
+            gridCounts.RowHeadersWidth = 39;
             gridCounts.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            gridCounts.Size = new Size(720, 390);
+            gridCounts.Size = new Size(458, 237);
             gridCounts.TabIndex = 1;
-            // 
+            gridCounts.AccessibleName = "Extension counts";
+            gridCounts.AccessibleDescription = "File extensions found under the chosen folder, with a count for each.";
+            //
             // pnlBottom
-            // 
-            pnlBottom.BackColor = Color.White;
+            //
             pnlBottom.Controls.Add(btnClose);
             pnlBottom.Controls.Add(btnAddExtension);
             pnlBottom.Controls.Add(lblTotal);
             pnlBottom.Dock = DockStyle.Bottom;
-            pnlBottom.Location = new Point(0, 520);
+            pnlBottom.Location = new Point(0, 316);
             pnlBottom.Name = "pnlBottom";
-            pnlBottom.Padding = new Padding(20, 10, 20, 15);
-            pnlBottom.Size = new Size(720, 70);
+            pnlBottom.Padding = new Padding(13, 6, 13, 9);
+            pnlBottom.Size = new Size(458, 42);
             pnlBottom.TabIndex = 2;
-            // 
+            //
             // btnClose
-            // 
-            btnClose.BackColor = Color.FromArgb(108, 117, 125);
+            //
             btnClose.FlatAppearance.BorderSize = 0;
             btnClose.FlatStyle = FlatStyle.Flat;
-            btnClose.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnClose.ForeColor = Color.White;
-            btnClose.Location = new Point(615, 13);
+            btnClose.Location = new Point(391, 8);
             btnClose.Name = "btnClose";
-            btnClose.Size = new Size(85, 45);
-            btnClose.TabIndex = 1;
-            btnClose.Text = "Close";
+            btnClose.Size = new Size(54, 27);
+            btnClose.TabIndex = 2;
+            btnClose.Text = "&Close";
+            // The dialog previously had no CancelButton at all, so Escape did not close it.
+            btnClose.DialogResult = DialogResult.Cancel;
             btnClose.UseVisualStyleBackColor = false;
-            // 
+            //
             // btnAddExtension
-            // 
-            btnAddExtension.BackColor = Color.FromArgb(40, 167, 69);
+            //
             btnAddExtension.FlatAppearance.BorderSize = 0;
             btnAddExtension.FlatStyle = FlatStyle.Flat;
-            btnAddExtension.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnAddExtension.ForeColor = Color.White;
-            btnAddExtension.Location = new Point(517, 13);
-            btnAddExtension.Margin = new Padding(0, 0, 10, 0);
+            btnAddExtension.Location = new Point(329, 8);
+            btnAddExtension.Margin = new Padding(0, 0, 6, 0);
             btnAddExtension.Name = "btnAddExtension";
-            btnAddExtension.Size = new Size(85, 45);
-            btnAddExtension.TabIndex = 0;
-            btnAddExtension.Text = "Add Selected";
+            btnAddExtension.Size = new Size(54, 27);
+            btnAddExtension.TabIndex = 1;
+            btnAddExtension.Text = "&Add Selected";
             btnAddExtension.UseVisualStyleBackColor = false;
-            // 
+            //
             // lblTotal
-            // 
+            //
             lblTotal.AutoSize = true;
             lblTotal.Dock = DockStyle.Left;
-            lblTotal.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            lblTotal.ForeColor = Color.FromArgb(33, 37, 41);
-            lblTotal.Location = new Point(20, 10);
+            lblTotal.Location = new Point(13, 6);
             lblTotal.Name = "lblTotal";
-            lblTotal.Padding = new Padding(0, 8, 0, 0);
-            lblTotal.Size = new Size(128, 36);
+            lblTotal.Padding = new Padding(0, 5, 0, 0);
+            lblTotal.Size = new Size(81, 22);
             lblTotal.TabIndex = 0;
+            lblTotal.AccessibleName = "Total files";
             lblTotal.Text = "Total files: 0";
-            // 
+            //
             // ExtensionCountsForm
-            // 
-            AutoScaleDimensions = new SizeF(11F, 28F);
+            //
+            AcceptButton = btnAddExtension;
+            AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = Color.FromArgb(245, 247, 250);
-            ClientSize = new Size(720, 590);
+            CancelButton = btnClose;
+            ClientSize = new Size(458, 358);
             Controls.Add(gridCounts);
             Controls.Add(pnlBottom);
             Controls.Add(pnlHeader);
-            Font = new Font("Segoe UI", 10F);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
-            MinimumSize = new Size(580, 580);
+            MinimumSize = new Size(369, 352);
             Name = "ExtensionCountsForm";
             StartPosition = FormStartPosition.CenterParent;
             Text = "Extension Counts";
@@ -220,6 +197,19 @@
             ((System.ComponentModel.ISupportInitialize)gridCounts).EndInit();
             pnlBottom.ResumeLayout(false);
             pnlBottom.PerformLayout();
+
+            // Theme roles. Colours and fonts are resolved from ThemeTokens /
+            // ThemeFonts at runtime; anything not listed here takes the default
+            // for its control type.
+            ThemeRoles.Set(btnAddExtension, ThemeRole.ButtonSuccess, FontRole.MediumBold);
+            ThemeRoles.Set(btnClose, ThemeRole.ButtonSecondary, FontRole.MediumBold);
+            ThemeRoles.Set(btnRefresh, ThemeRole.ButtonAccent, FontRole.BodyBold);
+            ThemeRoles.Set(lblHeaderTitle, FontRole.Title);
+            ThemeRoles.Set(lblPath, FontRole.Medium);
+            ThemeRoles.Set(lblSubfolders, FontRole.BodyItalic);
+            ThemeRoles.Set(lblTotal, FontRole.MediumBold);
+            ThemeRoles.Set(pnlBottom, ThemeRole.SurfaceAlt);
+            ThemeRoles.Set(pnlHeader, ThemeRole.Header);
             ResumeLayout(false);
         }
 

@@ -1,7 +1,8 @@
 using System.Drawing;
 using System.Windows.Forms;
+using CodeShuttle.Theming;
 
-namespace FileContentToolkit.Dialogs
+namespace CodeShuttle.Dialogs
 {
     partial class FolderTreePickerForm
     {
@@ -50,63 +51,54 @@ namespace FileContentToolkit.Dialogs
             //
             // pnlHeader
             //
-            pnlHeader.BackColor = Color.FromArgb(0, 102, 204);
             pnlHeader.Controls.Add(lblHeaderTitle);
             pnlHeader.Controls.Add(lblHeaderSubtitle);
             pnlHeader.Dock = DockStyle.Top;
             pnlHeader.Location = new Point(0, 0);
             pnlHeader.Name = "pnlHeader";
-            pnlHeader.Padding = new Padding(20, 12, 20, 10);
-            pnlHeader.Size = new Size(760, 70);
+            pnlHeader.Padding = new Padding(20, 14, 20, 11);
+            pnlHeader.Size = new Size(760, 79);
             pnlHeader.TabIndex = 0;
             //
             // lblHeaderTitle
             //
             lblHeaderTitle.AutoSize = true;
-            lblHeaderTitle.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
-            lblHeaderTitle.ForeColor = Color.White;
-            lblHeaderTitle.Location = new Point(20, 12);
+            lblHeaderTitle.Location = new Point(20, 14);
             lblHeaderTitle.Name = "lblHeaderTitle";
             lblHeaderTitle.Text = "Select files and folders";
             //
             // lblHeaderSubtitle
             //
             lblHeaderSubtitle.AutoSize = true;
-            lblHeaderSubtitle.Font = new Font("Segoe UI", 9.5F, FontStyle.Italic);
-            lblHeaderSubtitle.ForeColor = Color.WhiteSmoke;
-            lblHeaderSubtitle.Location = new Point(20, 42);
+            lblHeaderSubtitle.Location = new Point(20, 48);
             lblHeaderSubtitle.Name = "lblHeaderSubtitle";
             lblHeaderSubtitle.Text = "Tip: checking a folder selects every file inside it.";
             //
             // pnlBody
             //
-            pnlBody.BackColor = Color.White;
             pnlBody.Controls.Add(tree);
             pnlBody.Controls.Add(pnlFilterStrip);
             pnlBody.Dock = DockStyle.Fill;
-            pnlBody.Location = new Point(0, 70);
+            pnlBody.Location = new Point(0, 79);
             pnlBody.Name = "pnlBody";
-            pnlBody.Padding = new Padding(16, 12, 16, 12);
-            pnlBody.Size = new Size(760, 590);
+            pnlBody.Padding = new Padding(16, 14, 16, 14);
+            pnlBody.Size = new Size(760, 669);
             pnlBody.TabIndex = 1;
             //
             // pnlFilterStrip
             //
-            pnlFilterStrip.BackColor = Color.White;
             pnlFilterStrip.Controls.Add(chkExtFilter);
             pnlFilterStrip.Dock = DockStyle.Top;
-            pnlFilterStrip.Location = new Point(16, 12);
+            pnlFilterStrip.Location = new Point(16, 14);
             pnlFilterStrip.Name = "pnlFilterStrip";
-            pnlFilterStrip.Padding = new Padding(0, 6, 0, 6);
-            pnlFilterStrip.Size = new Size(728, 36);
+            pnlFilterStrip.Padding = new Padding(0, 7, 0, 7);
+            pnlFilterStrip.Size = new Size(728, 40);
             pnlFilterStrip.TabIndex = 0;
             //
             // chkExtFilter
             //
             chkExtFilter.AutoSize = true;
-            chkExtFilter.Font = new Font("Segoe UI", 9.5F);
-            chkExtFilter.ForeColor = Color.FromArgb(33, 37, 41);
-            chkExtFilter.Location = new Point(2, 4);
+            chkExtFilter.Location = new Point(2, 5);
             chkExtFilter.Name = "chkExtFilter";
             chkExtFilter.TabIndex = 0;
             chkExtFilter.Text = "Filter by configured extensions";
@@ -115,12 +107,9 @@ namespace FileContentToolkit.Dialogs
             //
             // tree
             //
-            tree.BackColor = Color.White;
             tree.BorderStyle = BorderStyle.FixedSingle;
             tree.CheckBoxes = true;
             tree.Dock = DockStyle.Fill;
-            tree.Font = new Font("Segoe UI", 9.5F);
-            tree.ForeColor = Color.FromArgb(33, 37, 41);
             tree.HideSelection = false;
             tree.Name = "tree";
             tree.ShowLines = true;
@@ -132,29 +121,25 @@ namespace FileContentToolkit.Dialogs
             //
             // pnlBottom
             //
-            pnlBottom.BackColor = Color.White;
             pnlBottom.Controls.Add(btnOk);
             pnlBottom.Controls.Add(btnCancel);
             pnlBottom.Dock = DockStyle.Bottom;
-            pnlBottom.Location = new Point(0, 660);
+            pnlBottom.Location = new Point(0, 748);
             pnlBottom.Name = "pnlBottom";
-            pnlBottom.Padding = new Padding(20, 12, 20, 12);
-            pnlBottom.Size = new Size(760, 60);
+            pnlBottom.Padding = new Padding(20, 14, 20, 14);
+            pnlBottom.Size = new Size(760, 68);
             pnlBottom.TabIndex = 2;
             //
             // btnOk
             //
             btnOk.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOk.BackColor = Color.FromArgb(51, 122, 183);
             btnOk.Cursor = Cursors.Hand;
             btnOk.DialogResult = DialogResult.OK;
             btnOk.FlatAppearance.BorderSize = 0;
             btnOk.FlatStyle = FlatStyle.Flat;
-            btnOk.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            btnOk.ForeColor = Color.White;
-            btnOk.Location = new Point(650, 12);
+            btnOk.Location = new Point(650, 14);
             btnOk.Name = "btnOk";
-            btnOk.Size = new Size(90, 36);
+            btnOk.Size = new Size(90, 40);
             btnOk.TabIndex = 0;
             btnOk.Text = "OK";
             btnOk.UseVisualStyleBackColor = false;
@@ -163,16 +148,13 @@ namespace FileContentToolkit.Dialogs
             // btnCancel
             //
             btnCancel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnCancel.BackColor = Color.FromArgb(108, 117, 125);
             btnCancel.Cursor = Cursors.Hand;
             btnCancel.DialogResult = DialogResult.Cancel;
             btnCancel.FlatAppearance.BorderSize = 0;
             btnCancel.FlatStyle = FlatStyle.Flat;
-            btnCancel.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            btnCancel.ForeColor = Color.White;
-            btnCancel.Location = new Point(552, 12);
+            btnCancel.Location = new Point(552, 14);
             btnCancel.Name = "btnCancel";
-            btnCancel.Size = new Size(90, 36);
+            btnCancel.Size = new Size(90, 40);
             btnCancel.TabIndex = 1;
             btnCancel.Text = "Cancel";
             btnCancel.UseVisualStyleBackColor = false;
@@ -182,16 +164,14 @@ namespace FileContentToolkit.Dialogs
             AcceptButton = btnOk;
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = Color.FromArgb(245, 247, 250);
             CancelButton = btnCancel;
-            ClientSize = new Size(760, 720);
+            ClientSize = new Size(760, 816);
             Controls.Add(pnlBody);
             Controls.Add(pnlBottom);
             Controls.Add(pnlHeader);
-            Font = new Font("Segoe UI", 9.5F);
             FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = true;
-            MinimumSize = new Size(540, 480);
+            MinimumSize = new Size(540, 544);
             Name = "FolderTreePickerForm";
             StartPosition = FormStartPosition.CenterParent;
             Text = "Select files and folders";
@@ -202,6 +182,20 @@ namespace FileContentToolkit.Dialogs
             pnlFilterStrip.ResumeLayout(false);
             pnlFilterStrip.PerformLayout();
             pnlBottom.ResumeLayout(false);
+
+            // Theme roles. Colours and fonts are resolved from ThemeTokens /
+            // ThemeFonts at runtime; anything not listed here takes the default
+            // for its control type.
+            ThemeRoles.Set(btnCancel, ThemeRole.ButtonSecondary, FontRole.BodyBold);
+            ThemeRoles.Set(btnOk, ThemeRole.ButtonAccent, FontRole.BodyBold);
+            ThemeRoles.Set(chkExtFilter, FontRole.Body);
+            ThemeRoles.Set(lblHeaderSubtitle, FontRole.BodyItalic);
+            ThemeRoles.Set(lblHeaderTitle, FontRole.Title);
+            ThemeRoles.Set(pnlBody, ThemeRole.SurfaceAlt);
+            ThemeRoles.Set(pnlBottom, ThemeRole.SurfaceAlt);
+            ThemeRoles.Set(pnlFilterStrip, ThemeRole.SurfaceAlt);
+            ThemeRoles.Set(pnlHeader, ThemeRole.Header);
+            ThemeRoles.Set(tree, FontRole.Body);
             ResumeLayout(false);
         }
 

@@ -1,7 +1,8 @@
 using System.Drawing;
 using System.Windows.Forms;
+using CodeShuttle.Theming;
 
-namespace FileContentToolkit.Dialogs
+namespace CodeShuttle.Dialogs
 {
     partial class FindReplaceForm
     {
@@ -24,6 +25,17 @@ namespace FileContentToolkit.Dialogs
         private Button btnReplace;
         private Button btnReplaceAll;
         private Label lblStatus;
+
+        /// <summary>
+        /// Off-screen zero-size button that exists solely to be <c>CancelButton</c>.
+        /// </summary>
+        /// <remarks>
+        /// This is a modeless tool window, so DialogResult does not close it and Escape was
+        /// hand-rolled on KeyDown — where it forgot to set <c>e.Handled</c>, unlike the F3 branch
+        /// beside it. Giving the form a real CancelButton routes Escape through the framework and
+        /// lets the hand-rolled branch go.
+        /// </remarks>
+        private Button btnCloseHidden;
 
         protected override void Dispose(bool disposing)
         {
@@ -51,47 +63,42 @@ namespace FileContentToolkit.Dialogs
             btnReplace = new Button();
             btnReplaceAll = new Button();
             lblStatus = new Label();
+            btnCloseHidden = new Button();
             pnlHeader.SuspendLayout();
             pnlBody.SuspendLayout();
             SuspendLayout();
-            // 
+            //
             // pnlHeader
-            // 
-            pnlHeader.BackColor = Color.FromArgb(0, 102, 204);
+            //
             pnlHeader.Controls.Add(lblHeaderTitle);
             pnlHeader.Controls.Add(lblHeaderSubtitle);
             pnlHeader.Dock = DockStyle.Top;
             pnlHeader.Location = new Point(0, 0);
             pnlHeader.Name = "pnlHeader";
-            pnlHeader.Padding = new Padding(20, 12, 20, 10);
-            pnlHeader.Size = new Size(560, 70);
+            pnlHeader.Padding = new Padding(13, 8, 13, 7);
+            pnlHeader.Size = new Size(356, 48);
             pnlHeader.TabIndex = 0;
-            // 
+            //
             // lblHeaderTitle
-            // 
+            //
             lblHeaderTitle.AutoSize = true;
-            lblHeaderTitle.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
-            lblHeaderTitle.ForeColor = Color.White;
-            lblHeaderTitle.Location = new Point(20, 12);
+            lblHeaderTitle.Location = new Point(13, 8);
             lblHeaderTitle.Name = "lblHeaderTitle";
-            lblHeaderTitle.Size = new Size(165, 32);
+            lblHeaderTitle.Size = new Size(105, 22);
             lblHeaderTitle.TabIndex = 0;
             lblHeaderTitle.Text = "Find & Replace";
-            // 
+            //
             // lblHeaderSubtitle
-            // 
+            //
             lblHeaderSubtitle.AutoSize = true;
-            lblHeaderSubtitle.Font = new Font("Segoe UI", 9.5F, FontStyle.Italic);
-            lblHeaderSubtitle.ForeColor = Color.WhiteSmoke;
-            lblHeaderSubtitle.Location = new Point(20, 42);
+            lblHeaderSubtitle.Location = new Point(13, 29);
             lblHeaderSubtitle.Name = "lblHeaderSubtitle";
-            lblHeaderSubtitle.Size = new Size(205, 25);
+            lblHeaderSubtitle.Size = new Size(130, 17);
             lblHeaderSubtitle.TabIndex = 1;
             lblHeaderSubtitle.Text = "Search the output pane.";
-            // 
+            //
             // pnlBody
-            // 
-            pnlBody.BackColor = Color.White;
+            //
             pnlBody.Controls.Add(lblFind);
             pnlBody.Controls.Add(cmbFind);
             pnlBody.Controls.Add(lblReplace);
@@ -104,182 +111,173 @@ namespace FileContentToolkit.Dialogs
             pnlBody.Controls.Add(btnReplace);
             pnlBody.Controls.Add(btnReplaceAll);
             pnlBody.Controls.Add(lblStatus);
+            pnlBody.Controls.Add(btnCloseHidden);
             pnlBody.Dock = DockStyle.Fill;
-            pnlBody.Location = new Point(0, 70);
+            pnlBody.Location = new Point(0, 48);
             pnlBody.Name = "pnlBody";
-            pnlBody.Padding = new Padding(16);
-            pnlBody.Size = new Size(560, 174);
+            pnlBody.Padding = new Padding(10, 11, 10, 11);
+            pnlBody.Size = new Size(356, 146);
             pnlBody.TabIndex = 1;
-            // 
+            //
             // lblFind
-            // 
+            //
             lblFind.AutoSize = true;
-            lblFind.ForeColor = Color.FromArgb(33, 37, 41);
-            lblFind.Location = new Point(16, 24);
+            lblFind.Location = new Point(10, 16);
             lblFind.Name = "lblFind";
-            lblFind.Size = new Size(52, 25);
+            lblFind.Size = new Size(33, 17);
             lblFind.TabIndex = 0;
             lblFind.Text = "Find:";
-            // 
+            //
             // cmbFind
-            // 
+            //
             cmbFind.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             cmbFind.FlatStyle = FlatStyle.Flat;
-            cmbFind.Font = new Font("Segoe UI", 9.5F);
-            cmbFind.Location = new Point(96, 20);
+            cmbFind.Location = new Point(61, 14);
             cmbFind.Name = "cmbFind";
-            cmbFind.Size = new Size(444, 33);
-            cmbFind.TabIndex = 0;
+            cmbFind.Size = new Size(283, 22);
+            cmbFind.TabIndex = 1;
             cmbFind.TextChanged += CmbFind_TextChanged;
-            // 
+            //
             // lblReplace
-            // 
+            //
             lblReplace.AutoSize = true;
-            lblReplace.ForeColor = Color.FromArgb(33, 37, 41);
-            lblReplace.Location = new Point(16, 58);
+            lblReplace.Location = new Point(10, 39);
             lblReplace.Name = "lblReplace";
-            lblReplace.Size = new Size(81, 25);
-            lblReplace.TabIndex = 1;
+            lblReplace.Size = new Size(52, 17);
+            lblReplace.TabIndex = 2;
             lblReplace.Text = "Replace:";
-            // 
+            //
             // cmbReplace
-            // 
+            //
             cmbReplace.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             cmbReplace.FlatStyle = FlatStyle.Flat;
-            cmbReplace.Font = new Font("Segoe UI", 9.5F);
-            cmbReplace.Location = new Point(96, 54);
+            cmbReplace.Location = new Point(61, 37);
             cmbReplace.Name = "cmbReplace";
-            cmbReplace.Size = new Size(444, 33);
-            cmbReplace.TabIndex = 1;
-            // 
+            cmbReplace.Size = new Size(283, 22);
+            cmbReplace.TabIndex = 3;
+            //
             // chkCase
-            // 
+            //
             chkCase.AutoSize = true;
-            chkCase.ForeColor = Color.FromArgb(33, 37, 41);
-            chkCase.Location = new Point(96, 90);
+            chkCase.Location = new Point(61, 61);
             chkCase.Name = "chkCase";
-            chkCase.Size = new Size(133, 29);
-            chkCase.TabIndex = 2;
+            chkCase.Size = new Size(85, 20);
+            chkCase.TabIndex = 4;
             chkCase.Text = "Match case";
             chkCase.UseVisualStyleBackColor = true;
             chkCase.CheckedChanged += ChkCase_CheckedChanged;
-            // 
+            //
             // chkWord
-            // 
+            //
             chkWord.AutoSize = true;
-            chkWord.ForeColor = Color.FromArgb(33, 37, 41);
-            chkWord.Location = new Point(210, 90);
+            chkWord.Location = new Point(134, 61);
             chkWord.Name = "chkWord";
-            chkWord.Size = new Size(141, 29);
-            chkWord.TabIndex = 3;
+            chkWord.Size = new Size(89, 20);
+            chkWord.TabIndex = 5;
             chkWord.Text = "Whole word";
             chkWord.UseVisualStyleBackColor = true;
             chkWord.CheckedChanged += ChkWord_CheckedChanged;
-            // 
+            //
             // chkRegex
-            // 
+            //
             chkRegex.AutoSize = true;
-            chkRegex.ForeColor = Color.FromArgb(33, 37, 41);
-            chkRegex.Location = new Point(330, 90);
+            chkRegex.Location = new Point(210, 61);
             chkRegex.Name = "chkRegex";
-            chkRegex.Size = new Size(88, 29);
-            chkRegex.TabIndex = 4;
+            chkRegex.Size = new Size(56, 20);
+            chkRegex.TabIndex = 6;
             chkRegex.Text = "Regex";
             chkRegex.UseVisualStyleBackColor = true;
             chkRegex.CheckedChanged += ChkRegex_CheckedChanged;
-            // 
+            //
             // btnNext
-            // 
-            btnNext.BackColor = Color.FromArgb(51, 122, 183);
+            //
             btnNext.Cursor = Cursors.Hand;
             btnNext.FlatAppearance.BorderSize = 0;
             btnNext.FlatStyle = FlatStyle.Flat;
-            btnNext.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            btnNext.ForeColor = Color.White;
-            btnNext.Location = new Point(96, 124);
+            btnNext.Location = new Point(61, 84);
             btnNext.Name = "btnNext";
-            btnNext.Size = new Size(105, 34);
-            btnNext.TabIndex = 5;
-            btnNext.Text = "Find Next";
+            btnNext.Size = new Size(67, 23);
+            btnNext.TabIndex = 7;
+            btnNext.Text = "Find &Next";
             btnNext.UseVisualStyleBackColor = false;
             btnNext.Click += BtnNext_Click;
-            // 
+            //
             // btnPrev
-            // 
-            btnPrev.BackColor = Color.FromArgb(108, 117, 125);
+            //
             btnPrev.Cursor = Cursors.Hand;
             btnPrev.FlatAppearance.BorderSize = 0;
             btnPrev.FlatStyle = FlatStyle.Flat;
-            btnPrev.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            btnPrev.ForeColor = Color.White;
-            btnPrev.Location = new Point(207, 124);
+            btnPrev.Location = new Point(132, 84);
             btnPrev.Name = "btnPrev";
-            btnPrev.Size = new Size(105, 34);
-            btnPrev.TabIndex = 6;
-            btnPrev.Text = "Find Prev";
+            btnPrev.Size = new Size(67, 23);
+            btnPrev.TabIndex = 8;
+            btnPrev.Text = "Find &Prev";
             btnPrev.UseVisualStyleBackColor = false;
             btnPrev.Click += BtnPrev_Click;
-            // 
+            //
             // btnReplace
-            // 
-            btnReplace.BackColor = Color.FromArgb(13, 110, 253);
+            //
             btnReplace.Cursor = Cursors.Hand;
             btnReplace.FlatAppearance.BorderSize = 0;
             btnReplace.FlatStyle = FlatStyle.Flat;
-            btnReplace.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            btnReplace.ForeColor = Color.White;
-            btnReplace.Location = new Point(318, 124);
+            btnReplace.Location = new Point(202, 84);
             btnReplace.Name = "btnReplace";
-            btnReplace.Size = new Size(105, 34);
-            btnReplace.TabIndex = 7;
-            btnReplace.Text = "Replace";
+            btnReplace.Size = new Size(67, 23);
+            btnReplace.TabIndex = 9;
+            btnReplace.Text = "&Replace";
             btnReplace.UseVisualStyleBackColor = false;
             btnReplace.Click += BtnReplace_Click;
-            // 
+            //
             // btnReplaceAll
-            // 
+            //
             btnReplaceAll.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnReplaceAll.BackColor = Color.FromArgb(40, 167, 69);
             btnReplaceAll.Cursor = Cursors.Hand;
             btnReplaceAll.FlatAppearance.BorderSize = 0;
             btnReplaceAll.FlatStyle = FlatStyle.Flat;
-            btnReplaceAll.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            btnReplaceAll.ForeColor = Color.White;
-            btnReplaceAll.Location = new Point(429, 124);
+            btnReplaceAll.Location = new Point(273, 84);
             btnReplaceAll.Name = "btnReplaceAll";
-            btnReplaceAll.Size = new Size(115, 34);
-            btnReplaceAll.TabIndex = 8;
-            btnReplaceAll.Text = "Replace All";
+            btnReplaceAll.Size = new Size(73, 23);
+            btnReplaceAll.TabIndex = 10;
+            btnReplaceAll.Text = "Replace &All";
             btnReplaceAll.UseVisualStyleBackColor = false;
             btnReplaceAll.Click += BtnReplaceAll_Click;
-            // 
+            //
             // lblStatus
-            // 
+            //
             lblStatus.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             lblStatus.AutoEllipsis = true;
-            lblStatus.Font = new Font("Segoe UI", 9.5F);
-            lblStatus.ForeColor = Color.FromArgb(108, 117, 125);
-            lblStatus.Location = new Point(16, 128);
+            // Was at y=87, inside the button row's y=84..107 band and last in z-order, so the
+            // form's only feedback channel — and its only regex-error surface — was drawn
+            // underneath the buttons and never seen.
+            lblStatus.Location = new Point(10, 115);
             lblStatus.Name = "lblStatus";
-            lblStatus.Size = new Size(528, 24);
-            lblStatus.TabIndex = 9;
+            lblStatus.Size = new Size(336, 18);
+            lblStatus.TabIndex = 11;
+            lblStatus.AccessibleName = "Search status";
             lblStatus.TextAlign = ContentAlignment.MiddleLeft;
-            // 
+            //
+            // btnCloseHidden
+            //
+            btnCloseHidden.Name = "btnCloseHidden";
+            btnCloseHidden.Size = new Size(0, 0);
+            btnCloseHidden.Location = new Point(-100, -100);
+            btnCloseHidden.TabStop = false;
+            btnCloseHidden.Click += (s, e) => Close();
+            //
             // FindReplaceForm
-            // 
+            //
             AcceptButton = btnNext;
-            AutoScaleDimensions = new SizeF(11F, 25F);
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            CancelButton = btnCloseHidden;
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = Color.FromArgb(245, 247, 250);
-            ClientSize = new Size(560, 244);
+            ClientSize = new Size(356, 194);
             Controls.Add(pnlBody);
             Controls.Add(pnlHeader);
-            Font = new Font("Segoe UI", 9.5F);
             FormBorderStyle = FormBorderStyle.SizableToolWindow;
             KeyPreview = true;
             MaximizeBox = false;
             MinimizeBox = false;
-            MinimumSize = new Size(480, 280);
+            MinimumSize = new Size(305, 218);
             Name = "FindReplaceForm";
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
@@ -289,6 +287,21 @@ namespace FileContentToolkit.Dialogs
             pnlHeader.PerformLayout();
             pnlBody.ResumeLayout(false);
             pnlBody.PerformLayout();
+
+            // Theme roles. Colours and fonts are resolved from ThemeTokens /
+            // ThemeFonts at runtime; anything not listed here takes the default
+            // for its control type.
+            ThemeRoles.Set(btnNext, ThemeRole.ButtonAccent, FontRole.BodyBold);
+            ThemeRoles.Set(btnPrev, ThemeRole.ButtonSecondary, FontRole.BodyBold);
+            ThemeRoles.Set(btnReplace, ThemeRole.ButtonAccent, FontRole.BodyBold);
+            ThemeRoles.Set(btnReplaceAll, ThemeRole.ButtonSuccess, FontRole.BodyBold);
+            ThemeRoles.Set(cmbFind, FontRole.Body);
+            ThemeRoles.Set(cmbReplace, FontRole.Body);
+            ThemeRoles.Set(lblHeaderSubtitle, FontRole.BodyItalic);
+            ThemeRoles.Set(lblHeaderTitle, FontRole.Title);
+            ThemeRoles.Set(lblStatus, ThemeRole.TextSecondary, FontRole.Body);
+            ThemeRoles.Set(pnlBody, ThemeRole.SurfaceAlt);
+            ThemeRoles.Set(pnlHeader, ThemeRole.Header);
             ResumeLayout(false);
         }
 

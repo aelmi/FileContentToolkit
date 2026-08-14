@@ -1,196 +1,288 @@
-# 📂 File Content Toolkit
+# CodeShuttle
 
-A **Windows Forms application** that **scans folders**, **filters by extension or rule**, **bundles file contents** into a single output, **searches**, **encrypts**, and **recreates** files from that output.
+**Send your code to AI. Bring the answers back.**
 
-Useful for developers preparing context for LLMs, content reviewers, automation workflows, code-review prep, or anyone who needs to audit / package / restore a tree of files.
+CodeShuttle is a Windows desktop app that packs a codebase into a single block
+of text you can paste into any AI chat — and then takes the AI's reply, diffs it
+against your files, and applies it.
 
-> Target: **.NET 8 (Windows)** · WinForms
+That second half is the point. Every other tool in this space is one-way: they
+pack your code and stop. Getting the answer back is left to you, copying file
+by file out of a chat window and hoping you did not paste into the wrong place.
 
----
-
-## 🔧 Features
-
-### File selection & scanning
-- Browse folders or paste a path; subfolder scan is on by default
-- Filter by extension (`.cs`, `.txt`, `.json`, …) — multiple at once
-- **Tree-view picker**: lazy-loaded `TreeView` with checkboxes for hand-picking files/folders
-- **Recent folders dropdown** (LRU, last 15) — survives restarts
-- **Ignore patterns** (comma-separated globs: `*.tmp, bin/`)
-- **.gitignore / .dockerignore** parsing from the folder root (negation, anchors, `**`, `?`)
-- **Max file size filter** to skip giant blobs
-- **Skip-binary detection** via null-byte heuristic on first 8 KB
-- **Auto-detect encoding** per file (BOM-first, then UTF-8 validation, then user-selected fallback)
-- **Drag-and-drop** files into the list
-
-### Background scanning
-- Fully async scan (`RefreshFilesAsync`) on a worker thread; cancellable
-- In-flight scans are cancelled when the folder, extensions, or ignore rules change
-- TextChanged on path / ignore patterns is **debounced 400 ms** so a scan only kicks off when typing pauses
-- Progress reported only on integer-percent changes (no UI marshalling storm)
-
-### Folder watching
-- **`FolderWatcher`** wraps `FileSystemWatcher` with a 600 ms debounce — bursts of file events collapse into a single refresh
-- Off by default; toggle the **Watch folder** checkbox in the top toolbar
-
-### Output generation
-- One-click **Generate** assembles every selected file into the right-hand output pane
-- File reads + string assembly run off-thread; output is assigned once and styled under suspended redraw (one repaint instead of N)
-- Per-file headers are colored & bold; output stats (chars / lines / bytes) shown below
-
-### Search
-- Search across selected files with **regex**, **match case**, **whole word** toggles
-- Total match count + file count reported in the UI
-- **Recent searches** dropdown (LRU, last 15)
-
-### Find & Replace in the output
-- Modeless `FindReplaceForm` opens via **Ctrl+F** or **Ctrl+H** anywhere in the output
-- Regex / case / whole-word toggles, **F3 / Shift+F3** for next / previous, live match count
-- Full Replace / Replace All (output must be in Edit mode)
-
-### Presets
-- **Save preset** snapshots the current folder + extensions + ignore patterns + IncludeSubfolders
-- **Presets ▾** lists saved presets and includes a **Manage presets…** dialog (load, rename, delete)
-- Persisted in JSON at `%APPDATA%\FileContentToolkit\settings.json`
-
-### Output toolbox
-- **Copy / Edit / Export** the output
-- **Compress / Decompress** GZip + Base64
-- **Compress+Encrypt / Decompress+Decrypt** with AES-GCM (password-protected)
-
-### Recreate files
-- Click **Recreate Files**, pick a base folder, and the app reconstructs every file from the output, preserving relative paths
-
-### Help & About
-- **Help** menu:
-  - **Keyboard Shortcuts…** (F1) — themed reference with shortcuts + feature overview
-  - **About…** — version (from assembly), copyright, link to the settings folder
+> Target: **.NET 8 (Windows)** · WinForms · Windows 10 1809 or later, x64
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## The round trip
+
+```
+   your repo                                            your repo
+       |                                                    ^
+       |  1. Pack          2. Paste        3. Paste back    |
+       v      ---------->      ---------->      ---------->  |
+   CodeShuttle           any AI chat          CodeShuttle ---+
+                       (Claude, ChatGPT,       4. Review the diff
+                        Gemini, local)         5. Apply what you accept
+```
+
+1. **Pack.** Point CodeShuttle at a folder. Filter by extension, `.gitignore`,
+   ignore rules or by hand. Generate.
+2. **Paste it into whatever AI you use.** No API key, no account, no per-token
+   billing. CodeShuttle never talks to an AI service — you do, in the chat you
+   already pay for.
+3. **Paste the answer back.** Ctrl+Shift+V. CodeShuttle parses the reply,
+   whether it came from a full pack or the model wrote files from scratch.
+4. **Review the diff.** Per file, line by line, before anything is written.
+5. **Apply.** Every file that will be overwritten is backed up first.
+
+You never have to trust the model. You approve every file.
+
+---
+
+## Why not one of the CLI tools
+
+`repomix`, `code2prompt`, `gitingest` and `ai-digest` all pack a repo well and
+all stop there. The one comparable round-trip tool, **Repo Prompt, is macOS
+only**. If you work on Windows, this is the option.
+
+---
+
+## It will not let you leak a credential
+
+Before a pack leaves your machine, CodeShuttle scans it for things that look
+like secrets and warns you:
+
+- AWS access key IDs
+- PEM private key blocks
+- JWTs
+- connection strings with an embedded password
+- `.env`-style assignments whose value has high entropy
+
+You can redact matches from the output with one toggle. The scan runs entirely
+locally — nothing detected is transmitted, logged or written to disk. Your
+original files are never modified by it.
+
+This matters because the tool's default job is to take everything in a folder
+and put it in a chat window.
+
+---
+
+## Everything else
+
+**Selecting files**
+- Browse, paste a path, or drag files in
+- Filter by extension; a checkbox tree picker for hand-picking
+- `.gitignore` support with correct anchoring and case sensitivity;
+  `.dockerignore` as a separate opt-in
+- Comma-separated ignore rules with a dedicated rule editor
+- Max file size, skip-binary detection, per-file encoding detection
+- A clickable "N files skipped" status item that tells you exactly what was
+  excluded and why — a pack that quietly omits files is worse than no pack
+- Recent folders and saved presets, both persisted
+
+**Output**
+- Plain text, Markdown, XML or JSON
+- Editable in place, exportable, copyable
+- Find and replace with regex, case and whole-word toggles
+- Prompt templates, with Claude and ChatGPT variants built in
+
+**Token budget**
+- A gauge showing how much of your model's context the pack will use, and a
+  per-file breakdown of where it went
+- The number is a heuristic estimate, not a real tokenizer count, and is
+  labelled as such wherever it appears
+
+**Applying changes back**
+- A real diff view before anything is written
+- Encoding, line endings and trailing-newline state are preserved per file — an
+  LF repository stays LF, a UTF-16 file stays UTF-16
+- Every overwritten file is copied to
+  `%APPDATA%\CodeShuttle\backups\<timestamp>\` with a manifest, before the first
+  write
+- Writes are staged through a temp file in the destination directory, so a
+  failure cannot leave a half-written file
+- Any bundle entry that would resolve outside the folder you chose is rejected
+  and shown to you with the reason
+
+**Other**
+- Dark mode across every window, including the title bar and scrollbars
+- Per-monitor V2 DPI awareness
+- F1 opens help for whichever pane has focus; Shift+F1 opens contents
+- Gzip + AES-GCM compression and encryption, from **Protect ▾** in the pack header
+
+---
+
+## Requirements
+
+- Windows 10 version 1809 or later, or Windows 11
+- x64
+- **No .NET runtime needed.** The installer ships a self-contained build.
+
+Building from source needs the .NET 8 SDK.
+
+---
+
+## Install
+
+Download the installer from the
+[Releases page](https://github.com/aelmi/CodeShuttle/releases) and run it.
+
+The installer offers a per-user or an all-users install. An all-users install
+also enables long path support in Windows
+(`HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled`), which
+CodeShuttle needs to reach deeply nested files; a per-user install cannot set
+this and skips it.
+
+> **First run will show a SmartScreen warning.** CodeShuttle is not yet code
+> signed — see `CHANGELOG.md`. Choose "More info" then "Run anyway". This will
+> stop once signing is in place.
+
+Uninstalling **deliberately leaves `%APPDATA%\CodeShuttle` in place** so your
+presets, prompt templates and backups survive a reinstall. Delete that folder
+by hand if you want it gone.
+
+---
+
+## Quick start
+
+1. Ctrl+O and pick a folder.
+2. Add the extensions you care about, or load a language preset.
+3. Ctrl+G to generate. Check the token gauge, and the skipped-file count.
+4. Ctrl+C, then paste into your AI chat with whatever you want done.
+5. Copy the reply. Back in CodeShuttle, Ctrl+Shift+V.
+6. Pick the target folder, read the diff, untick anything you do not want.
+7. Apply.
+
+---
+
+## Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl + F` / `Ctrl + H` | Open Find & Replace in the output pane |
-| `F3` / `Shift + F3` | (in Find dialog) next / previous match |
-| `Esc` | (in Find dialog) close |
-| `Delete` | Remove selected file(s) from the list |
-| `Enter` | (in extension box) add the typed extension |
-| `F1` | Open the Help dialog |
+| `Ctrl+O` | Browse for folder |
+| `Ctrl+Shift+O` | Add another folder |
+| `F5` / `Ctrl+R` | Refresh file list |
+| `Ctrl+G` / `F9` | Generate output |
+| `Ctrl+C` | Copy output |
+| `Ctrl+Shift+C` | Copy output as… (Markdown, XML, JSON) |
+| `Ctrl+E` | Export output to a file |
+| `Ctrl+Shift+V` | Paste AI response |
+| `Ctrl+F` / `Ctrl+H` | Find and replace in output |
+| `Ctrl+,` | Options |
+| `Ctrl+P` | Presets |
+| `Del` | Remove selected files or extensions |
+| `Esc` | Cancel the running scan, generate or apply |
+| `F1` | Help for the focused pane |
+| `Shift+F1` | Help contents |
+
+This table is generated from the same `Shortcuts.All` table the application
+reads at runtime, so the in-app list and this one cannot disagree.
 
 ---
 
-## 🖥️ Interface
+## Where your data lives
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│  Help                                                                 │  Menu
-├──────────────────────────────────────────────────────────────────────┤
-│  Folder Path:  [.........................................] [...]    │
-│  [Tree][Recent ▾][Options][Save preset][Presets ▾]  ☐ Watch folder   │  Toolbar
-├──────────────────────────────────┬────────────────────────────────────┤
-│ File Extensions                  │ Output                             │
-│ Selected Files                   │  ┌──────────────────────────────┐ │
-│  Search  ☐Aa ☐Word ☐.* [F/R]     │  │ (concatenated text)          │ │
-│  [ list of files ]               │  │ ...                          │ │
-│ Files: N   [Add][Remove][▲][▼]   │  └──────────────────────────────┘ │
-├──────────────────────────────────┴────────────────────────────────────┤
-│                          [ ▶  GENERATE ]                              │
-└───────────────────────────────────────────────────────────────────────┘
-```
+Everything is local, under `%APPDATA%\CodeShuttle\`:
 
----
-
-## ⚙️ Options
-
-Available from the **Options** button in the top toolbar:
-
-| Setting | Default |
+| Path | Contents |
 |---|---|
-| Max file size (KB, 0 = unlimited) | 0 |
-| Skip binary files | On |
-| Auto-detect encoding (BOM + UTF-8 fallback) | On |
-| Apply `.gitignore` / `.dockerignore` from folder root | On |
-| Watch folder for changes and auto-refresh | Off |
+| `settings.json` | Options, presets, recent folders and searches, window position |
+| `backups\` | Pre-overwrite copies taken before each apply |
+| `logs\` | Crash reports, written only on a crash, never transmitted |
 
-All settings, recent folders, recent searches, and presets persist to JSON in `%APPDATA%\FileContentToolkit\settings.json`.
-
----
-
-## 🏗️ Project Structure
-
-| Namespace | Files |
-|---|---|
-| `FileContentToolkit` (root) | `MainForm.{cs,Designer.cs,resx}`, `MainForm.Extra.cs` (plumbing only), `FileContentService.cs`, `FileRecreator.cs`, `CompressionUtils.cs`, `ExtensionCountsForm.*` |
-| `FileContentToolkit.Dialogs` | `OptionsForm.{cs,Designer.cs,resx}`, `PresetManagerForm.cs`, `FolderTreePickerForm.cs`, `FindReplaceForm.cs`, `AboutForm.{cs,Designer.cs,resx}`, `HelpForm.{cs,Designer.cs,resx}`, `PasswordDialog.*` |
-| `FileContentToolkit.Filters` | `GitIgnoreParser.cs`, `BinaryFileDetector.cs`, `EncodingDetector.cs` |
-| `FileContentToolkit.Settings` | `AppSettings.cs` (also defines `Preset`) |
-| `FileContentToolkit.Watcher` | `FolderWatcher.cs` |
-| `FileContentToolkit.UI` | `Theme.cs` (palette + button factories + AppIcon), `ThemedPrompt.cs`, `SplitButton.cs` |
-
-The main form is **100 % designer-backed** — every visible control is declared and configured in `MainForm.Designer.cs`. `MainForm.Extra.cs` carries only cross-cutting plumbing (settings load/save, folder watcher lifecycle, event handlers wired by the designer).
+CodeShuttle makes exactly one network request: an update check against the
+public GitHub Releases API. It sends a User-Agent and nothing else. See
+[PRIVACY.md](PRIVACY.md).
 
 ---
 
-## 🎨 Theme
-
-Single source of truth in `Theme.cs`:
-
-| Token | Value | Used for |
-|---|---|---|
-| Header    | `#0066CC` | Page-header strip |
-| Primary   | `#3375B7` | Primary buttons |
-| Action    | `#0D6EFD` | Accent / Find&Replace |
-| Success   | `#28A745` | Add / Recreate / Presets |
-| Danger    | `#DC3545` | Remove |
-| Secondary | `#6C757D` | Neutral / Cancel |
-| FormBg    | `#F5F7FA` | Form background |
-
-`Theme.ApplyForm(f)` applies background + font + icon in one call. `Theme.AppIcon` is lazy-extracted from the running executable so every dialog shares the main app icon.
-
----
-
-## 🚀 Getting Started
+## Building from source
 
 ```bash
-git clone https://github.com/aelmi/FileContentToolkit.git
-cd FileContentToolkit
-dotnet build
-dotnet run
+git clone https://github.com/aelmi/CodeShuttle.git
+cd CodeShuttle
+dotnet build -c Release
+dotnet test tests/CodeShuttle.Tests
 ```
 
-Or open the solution in **Visual Studio 2022+** and press F5.
+The build runs with `TreatWarningsAsErrors` and .NET analyzers at
+`AnalysisMode=Recommended`, and the project has **zero suppressions** — no
+`NoWarn` entries and no `#pragma warning disable`. A warning is a broken build.
+
+> **Verify with `dotnet build -c Release --no-incremental`.** A warm `obj/`
+> reports "0 Warning(s)" whether or not warnings exist, because nothing
+> recompiles.
+
+To produce a release build and installer locally:
+
+```powershell
+.\build\publish.ps1 -Version 1.0.0 -Installer
+```
+
+Trimming and AOT are **not** available: `PublishTrimmed=true` fails outright with
+`NETSDK1175` for Windows Forms, and this app would break specifically anyway —
+settings and update parsing use reflection-based `JsonSerializer.Deserialize<T>`,
+which trimming reduces to silently default-valued objects.
 
 ---
 
-## 📤 Output Format
+## Repository layout
 
-When you click **Generate**, each file is emitted as:
+The project is deliberately flat: a single WinForms project at the root, with
+the test project under `tests\`.
+
+| Namespace | Covers |
+|---|---|
+| `CodeShuttle` | `MainForm` and its partials, `FileContentService`, `FileRecreator`, `BundleFormat`, `PathSafety`, `TokenBudget` |
+| `CodeShuttle.Dialogs` | Every dialog, including `PasteResponseForm` and `DiffViewerForm` |
+| `CodeShuttle.Theming` | Token theme system: `ThemeTokens`, `ThemePalettes`, `ThemeApplier`, `ThemedForm` |
+| `CodeShuttle.Controls` | `Toast`, `SearchBox`, `EmptyStateView`, `FocusRing` |
+| `CodeShuttle.Filters` | `GitIgnoreParser`, `BinaryFileDetector`, `EncodingDetector`, `SecretScanner` |
+| `CodeShuttle.Diagnostics` | `CrashLogger`, `UpdateChecker`, `DiagnosticsReport`, `AboutInfo` |
+| `CodeShuttle.Settings` | `AppSettings` |
+
+Colours are never written into a Designer file. Controls are tagged with a
+`ThemeRole` and the applier resolves the palette, so adding a control and doing
+nothing is correct rather than broken.
+
+---
+
+## The bundle format
 
 ```
-C:\MyProject\Program.cs:
+>>>> CodeShuttle bundle v1
+>>>> file: src\Program.cs
+>>>> meta: lines=3; encoding=utf-8; eol=lf; eofNewline=true
 using System;
 
-class Program {
-    static void Main() { }
-}
+class Program { }
+<<<< end file
 ```
 
-Files are separated by blank lines. The output is plain text, can be edited in place, and can be **Recreated** back into a folder while preserving relative paths.
+The parser reads exactly the declared number of lines and then verifies the
+sentinel — it never scans inside an entry, so file content cannot forge a
+header. Bundles written in the older `path:` format still parse.
 
 ---
 
-## 🔁 File Recreation
+## Documentation
 
-Click **Recreate Files**, choose a target folder, and the parser:
-- Walks the output looking for `path:` headers
-- Creates each file, plus any intermediate directories
-- Preserves the original relative-path structure
-
-Works on the original output **and** on output that's been re-imported after editing or after decryption.
+- [CHANGELOG.md](CHANGELOG.md) — what changed, and what the owner must do
+  before release
+- [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) — everything outstanding before
+  v1.0.0 ships: owner actions, two open design decisions, and the manual GUI
+  verification passes that could not be automated
+- [PRIVACY.md](PRIVACY.md) — what is stored and what leaves the machine
+- [LICENSE.txt](LICENSE.txt) — end user licence agreement
+- [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt) — third-party attributions
+- In-app help: F1
 
 ---
 
-## 📄 License
+## License
 
-Not specified yet — add a license under the repo's GitHub settings.
+Proprietary. See [LICENSE.txt](LICENSE.txt).
+
+© 2026 MyCompany. `MyCompany` is a placeholder pending business registration —
+see `CHANGELOG.md`.

@@ -1,17 +1,39 @@
 ﻿using System;
-using System.Drawing;
 using System.Windows.Forms;
+using CodeShuttle.Theming;
 
-namespace FileContentToolkit.Dialogs
+namespace CodeShuttle.Dialogs
 {
-    public partial class PasswordDialog : Form
+    public partial class PasswordDialog : ThemedForm
     {
-        private Color btnOKDefaultColor = Color.FromArgb(0, 123, 255);
-        private Color btnOKHoverColor = Color.FromArgb(0, 86, 179);
-        private Color btnCancelDefaultColor = Color.FromArgb(108, 117, 125);
-        private Color btnCancelHoverColor = Color.FromArgb(90, 98, 104);
+        /// <summary>
+        /// Below this, a password is not worth the false sense of security. The previous
+        /// four-character floor was both too weak and never applied on the real encryption path.
+        /// </summary>
+        public const int MinimumPasswordLength = 8;
+
+        private bool _requireConfirmation;
 
         public string Password => txtPassword.Text;
+
+        /// <summary>
+        /// When true the user must type the password twice and the two must match exactly before
+        /// the dialog will close with OK. Encryption is one-way with no recovery: a single typo
+        /// in a password used to produce a permanently undecryptable blob.
+        /// </summary>
+        public bool RequireConfirmation
+        {
+            get => _requireConfirmation;
+            set
+            {
+                _requireConfirmation = value;
+                // The rows are AutoSize, and a TableLayoutPanel ignores invisible children when
+                // measuring, so hiding these collapses the rows and the dialog shrinks to fit
+                // rather than leaving a hole where the confirm field would have been.
+                lblConfirm.Visible = value;
+                txtConfirm.Visible = value;
+            }
+        }
 
         public string Prompt
         {
@@ -22,7 +44,9 @@ namespace FileContentToolkit.Dialogs
         public string HeaderText
         {
             get => lblHeader.Text;
-            set => lblHeader.Text = "🔐 " + value;
+            // The padlock emoji is gone: screen readers announce it literally, and it depended on
+            // Segoe UI Emoji being present.
+            set => lblHeader.Text = value;
         }
 
         public PasswordDialog() : this("Enter Password", "Enter password:")
@@ -33,13 +57,49 @@ namespace FileContentToolkit.Dialogs
         {
         }
 
-        public PasswordDialog(string title, string prompt)
+        public PasswordDialog(string title, string prompt) : this(title, prompt, requireConfirmation: false)
+        {
+        }
+
+        public PasswordDialog(string title, string prompt, bool requireConfirmation)
         {
             InitializeComponent();
 
             this.Text = title;
             this.HeaderText = title;
             this.Prompt = prompt;
+            this.RequireConfirmation = requireConfirmation;
+        }
+
+        /// <summary>
+        /// The dialog enforces its own rules, so no caller can reach OK with an invalid or
+        /// unconfirmed password regardless of which entry point it used.
+        /// </summary>
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (DialogResult == DialogResult.OK && !ValidatePassword(out var error))
+            {
+                e.Cancel = true;
+                MessageBox.Show(this, error, "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                if (RequireConfirmation && txtPassword.Text == txtConfirm.Text)
+                {
+                    txtPassword.Clear();
+                    txtConfirm.Clear();
+                    txtPassword.Focus();
+                }
+                else if (RequireConfirmation)
+                {
+                    txtConfirm.Clear();
+                    txtConfirm.Focus();
+                }
+                else
+                {
+                    txtPassword.Focus();
+                }
+                DialogResult = DialogResult.None;
+                return;
+            }
+            base.OnFormClosing(e);
         }
 
         private void PasswordDialog_Shown(object sender, EventArgs e)
@@ -51,6 +111,7 @@ namespace FileContentToolkit.Dialogs
         private void ChkShowPassword_CheckedChanged(object sender, EventArgs e)
         {
             txtPassword.UseSystemPasswordChar = !chkShowPassword.Checked;
+            txtConfirm.UseSystemPasswordChar = !chkShowPassword.Checked;
         }
 
         private void TxtPassword_KeyDown(object sender, KeyEventArgs e)
@@ -63,30 +124,10 @@ namespace FileContentToolkit.Dialogs
             }
         }
 
-        private void BtnOK_MouseEnter(object sender, EventArgs e)
-        {
-            btnOK.BackColor = btnOKHoverColor;
-        }
-
-        private void BtnOK_MouseLeave(object sender, EventArgs e)
-        {
-            btnOK.BackColor = btnOKDefaultColor;
-        }
-
-        private void BtnCancel_MouseEnter(object sender, EventArgs e)
-        {
-            btnCancel.BackColor = btnCancelHoverColor;
-        }
-
-        private void BtnCancel_MouseLeave(object sender, EventArgs e)
-        {
-            btnCancel.BackColor = btnCancelDefaultColor;
-        }
-
         /// <summary>
         /// Shows the password dialog and returns the entered password, or null if cancelled.
         /// </summary>
-        public static string ShowDialog(IWin32Window owner, string title, string prompt = "Enter password:")
+        public static string? ShowDialog(IWin32Window owner, string title, string prompt = "Enter password:")
         {
             using (var dialog = new PasswordDialog(title, prompt))
             {
@@ -105,15 +146,22 @@ namespace FileContentToolkit.Dialogs
         {
             errorMessage = string.Empty;
 
-            if (string.IsNullOrWhiteSpace(Password))
+            if (string.IsNullOrEmpty(Password))
             {
                 errorMessage = "Password cannot be empty.";
                 return false;
             }
 
-            if (Password.Length < 4)
+            if (Password.Length < MinimumPasswordLength)
             {
-                errorMessage = "Password must be at least 4 characters long.";
+                errorMessage = $"Password must be at least {MinimumPasswordLength} characters long.";
+                return false;
+            }
+
+            if (RequireConfirmation && !string.Equals(Password, txtConfirm.Text, StringComparison.Ordinal))
+            {
+                errorMessage = "The two passwords do not match. Encrypted content cannot be recovered " +
+                               "without the exact password, so both entries must be identical.";
                 return false;
             }
 
@@ -121,35 +169,19 @@ namespace FileContentToolkit.Dialogs
         }
 
         /// <summary>
-        /// Shows the dialog with password validation.
+        /// Shows the dialog with password validation. Returns null if the user cancelled.
+        /// Pass <paramref name="requireConfirmation"/> for any path that ENCRYPTS.
         /// </summary>
-        public static string ShowDialogWithValidation(IWin32Window owner, string title, string prompt = "Enter password:")
+        public static string? ShowDialogWithValidation(
+            IWin32Window owner,
+            string title,
+            string prompt = "Enter password:",
+            bool requireConfirmation = false)
         {
-            using (var dialog = new PasswordDialog(title, prompt))
-            {
-                while (true)
-                {
-                    if (dialog.ShowDialog(owner) == DialogResult.OK)
-                    {
-                        if (dialog.ValidatePassword(out string errorMessage))
-                        {
-                            return dialog.Password;
-                        }
-                        else
-                        {
-                            MessageBox.Show(errorMessage, "Invalid Password",
-                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            dialog.txtPassword.Clear();
-                            dialog.txtPassword.Focus();
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        return null; // User cancelled
-                    }
-                }
-            }
+            using var dialog = new PasswordDialog(title, prompt, requireConfirmation);
+            // The dialog itself refuses to close with OK unless the password is valid, so a
+            // single ShowDialog is enough — no retry loop, no chance of slipping past validation.
+            return dialog.ShowDialog(owner) == DialogResult.OK ? dialog.Password : null;
         }
     }
 }

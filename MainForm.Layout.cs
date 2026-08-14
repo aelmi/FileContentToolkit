@@ -53,6 +53,7 @@ namespace CodeShuttle
         private Panel outputHost = null!;
         private Panel ignoreRow = null!;
         private Label lblFolderGlyph = null!;
+        private Label lblProtect = null!;
 
         /// <summary>
         /// Extension the "+ add" pill prompts for, so a custom extension can still be typed now
@@ -347,7 +348,7 @@ namespace CodeShuttle
             ThemeRoles.Set(lblOutput, ThemeRole.TextDisabled, FontRole.SmallBold);
 
             btnGenerate.Text = "Generate";
-            foreach (var b in new Control[] { btnFindReplace, btnEditOutput, btnProtect, btnExportOutput, btnCopyOutput, btnGenerate })
+            foreach (var b in new Control[] { btnFindReplace, btnExportOutput, btnCopyOutput, btnGenerate })
             {
                 b.Dock = DockStyle.Right;
                 b.AutoSize = false;
@@ -360,29 +361,21 @@ namespace CodeShuttle
             // common next step once it does, and a second accent fill would make neither read as
             // the primary one.
             ThemeRoles.Set(btnFindReplace, ThemeRole.ButtonSubtle, FontRole.Body);
-            ThemeRoles.Set(btnEditOutput, ThemeRole.ButtonSubtle, FontRole.Body);
             ThemeRoles.Set(btnExportOutput, ThemeRole.ButtonSubtle, FontRole.Body);
             ThemeRoles.Set(btnCopyOutput, ThemeRole.ButtonSubtle, FontRole.Body);
-            ThemeRoles.Set(btnProtect, ThemeRole.ButtonSubtle, FontRole.Body);
             ThemeRoles.Set(btnGenerate, ThemeRole.ButtonAccent, FontRole.BodyBold);
             btnFindReplace.Text = "Find";
-
-            // The face opens the menu as well as the caret does. A split button normally runs its
-            // primary action on a face click, but there is no safe primary here: three of the four
-            // actions rewrite the pane, and one of them asks for a password the user cannot recover.
-            // Making the whole control a menu means nothing happens that was not picked by name.
-            // Wired once, in the designer.
 
             pnlOutputHeader.Dock = DockStyle.Top;
             pnlOutputHeader.Padding = new Padding(14, 8, 14, 8);
             ThemeRoles.Set(pnlOutputHeader, ThemeRole.Surface);
             pnlOutputHeader.Controls.Add(lblOutput);
             pnlOutputHeader.Controls.Add(btnFindReplace);
-            pnlOutputHeader.Controls.Add(btnEditOutput);
-            pnlOutputHeader.Controls.Add(btnProtect);
             pnlOutputHeader.Controls.Add(btnExportOutput);
             pnlOutputHeader.Controls.Add(btnCopyOutput);
             pnlOutputHeader.Controls.Add(btnGenerate);
+
+            BuildProtectStrip();
 
             // ---- output + empty state --------------------------------------------------
             rtbOutput.Dock = DockStyle.Fill;
@@ -488,7 +481,55 @@ namespace CodeShuttle
             paneHost.Controls.Add(pnlBudget);
             paneHost.Controls.Add(lblOutputStats);
             paneHost.Controls.Add(pnlRecreateInfo);
+            // Added before the header, so the header docks outermost and this strip lands directly
+            // above the output box — between the pack's identity and the pack itself.
+            paneHost.Controls.Add(pnlProtectTools);
             paneHost.Controls.Add(pnlOutputHeader);
+        }
+
+        /// <summary>
+        /// The row of text actions directly above the output box: Edit, and the four compression
+        /// and encryption commands.
+        /// </summary>
+        /// <remarks>
+        /// These act on the text in the pane, which is why they sit against the pane rather than in
+        /// the pack header with Export, Copy and Generate — those act on the pack as an artifact.
+        /// Docked left in reading order rather than right, because unlike the header buttons they
+        /// are a sequence you read, not a set you reach for.
+        /// </remarks>
+        private void BuildProtectStrip()
+        {
+            lblProtect = new Label { Name = "lblProtect" };
+            lblProtect.Text = "PROTECT";
+            lblProtect.Dock = DockStyle.Left;
+            lblProtect.AutoSize = false;
+            lblProtect.TextAlign = ContentAlignment.MiddleLeft;
+            ThemeRoles.Set(lblProtect, ThemeRole.TextDisabled, FontRole.SmallBold);
+
+            foreach (var b in new[] { btnDecompressEnc, btnCompressEnc, btnDecompress, btnCompress, btnEditOutput })
+            {
+                b.Dock = DockStyle.Left;
+                b.AutoSize = false;
+                b.Margin = new Padding(0);
+                b.FlatStyle = FlatStyle.Flat;
+                b.FlatAppearance.BorderSize = 0;
+                ThemeRoles.Set(b, ThemeRole.ButtonSubtle, FontRole.Body);
+            }
+
+            btnEditOutput.Text = "Edit";
+
+            pnlProtectTools.Dock = DockStyle.Top;
+            pnlProtectTools.Padding = new Padding(14, 6, 14, 8);
+            ThemeRoles.Set(pnlProtectTools, ThemeRole.Surface);
+
+            // Left-docked children lay out from the end of the collection backwards, so this list is
+            // reversed on screen: Edit, Compress, Decompress, Encrypt, Decrypt, after the label.
+            pnlProtectTools.Controls.Add(btnDecompressEnc);
+            pnlProtectTools.Controls.Add(btnCompressEnc);
+            pnlProtectTools.Controls.Add(btnDecompress);
+            pnlProtectTools.Controls.Add(btnCompress);
+            pnlProtectTools.Controls.Add(btnEditOutput);
+            pnlProtectTools.Controls.Add(lblProtect);
         }
 
         // ------------------------------------------------------------------ helpers
@@ -521,7 +562,8 @@ namespace CodeShuttle
         {
             var t = ThemeManager.Tokens;
             foreach (var b in new[]
-                     { btnCopyOutput, btnProtect, btnAddMultipleFiles, btnAddFolder, btnPasteResponse, btnApplyAiChanges })
+                     { btnCopyOutput, btnEditOutput, btnCompress, btnDecompress, btnCompressEnc, btnDecompressEnc,
+                       btnAddMultipleFiles, btnAddFolder, btnPasteResponse, btnApplyAiChanges })
             {
                 b.FlatAppearance.BorderSize = 1;
                 b.FlatAppearance.BorderColor = t.Border;
@@ -568,13 +610,23 @@ namespace CodeShuttle
             pnlOutputHeader.Height = headerButton + pnlOutputHeader.Padding.Vertical;
             lblOutput.Width = unit * 4;
             btnFindReplace.Width = unit * 4;
-            btnEditOutput.Width = unit * 4;
-            btnProtect.Width = unit * 6;
             btnExportOutput.Width = unit * 5;
             btnCopyOutput.Width = unit * 6;
             btnGenerate.Width = unit * 6;
-            foreach (var b in new Control[] { btnFindReplace, btnEditOutput, btnProtect, btnExportOutput, btnCopyOutput, btnGenerate })
+            foreach (var b in new Control[] { btnFindReplace, btnExportOutput, btnCopyOutput, btnGenerate })
                 b.Height = headerButton;
+
+            // Measured, not guessed at a multiple of the font height: "Decom&press" and
+            // "🔓 Decrypt..." are different lengths, and a fixed multiple clips the longer one at
+            // any font size the user picks.
+            pnlProtectTools.Height = headerButton + pnlProtectTools.Padding.Vertical;
+            lblProtect.Width = unit * 5;
+            foreach (var b in new[] { btnEditOutput, btnCompress, btnDecompress, btnCompressEnc, btnDecompressEnc })
+            {
+                int text = TextRenderer.MeasureText(b.Text, b.Font).Width;
+                b.Width = Math.Max(unit * 4, text + unit * 2);
+                b.Height = headerButton;
+            }
 
             pnlBudget.Height = unit + 10 + pnlBudget.Padding.Vertical;
             lblBudgetModel.Width = unit * 4;
@@ -767,13 +819,25 @@ namespace CodeShuttle
             // generating anything.
             emptyOutput.Visible = !hasOutput;
 
-            // Nothing to find, edit, export, copy or protect until there is a pack. Protect covers
-            // decryption too, which also needs something in the pane to work on.
+            // Nothing to find, edit, export or copy until there is a pack.
             btnFindReplace.Enabled = hasOutput;
             btnEditOutput.Enabled = hasOutput;
             btnExportOutput.Enabled = hasOutput;
             btnCopyOutput.Enabled = hasOutput;
-            btnProtect.Enabled = hasOutput;
+
+            // The four protect buttons are enabled against what the pane actually holds, sniffed
+            // from the blob's magic prefix, so the strip cannot offer to decrypt plain text or to
+            // encrypt something that is already sealed. Each disabled button keeps a tooltip saying
+            // why, because a greyed control with no explanation is its own bug report.
+            var pane = rtbOutput.Text ?? string.Empty;
+            bool encrypted = CompressionUtils.LooksLikeEncryptedBase64(pane);
+            bool compressed = CompressionUtils.LooksLikeCompressedBase64(pane);
+            bool plain = hasOutput && !encrypted && !compressed;
+
+            btnCompress.Enabled = plain;
+            btnCompressEnc.Enabled = plain;
+            btnDecompress.Enabled = compressed;
+            btnDecompressEnc.Enabled = encrypted;
         }
     }
 }

@@ -109,7 +109,7 @@ and put it in a chat window.
 - Dark mode across every window, including the title bar and scrollbars
 - Per-monitor V2 DPI awareness
 - F1 opens help for whichever pane has focus; Shift+F1 opens contents
-- Gzip + AES-GCM compression and encryption, from **Protect ▾** in the pack header
+- Gzip + AES-GCM compression and encryption, from the **PROTECT** row above the output
 
 ---
 

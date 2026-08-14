@@ -39,34 +39,51 @@ Legacy headerless blobs still decrypt. Suggested extension `*.cshtx`.
 
 ## Done this session
 
-1. **Protect ▾ restored to the first page** — a `SplitButton` in `pnlOutputHeader`, between Edit
-   and Export, opening a four-item menu: Encrypt with password / Decrypt with password /
-   Compress (no password) / Decompress. Wired to the *existing* handlers; the Tools submenu still
-   works and shares them.
-   - The whole face opens the menu (`BtnProtect_Click`), not just the caret. There is no safe
-     primary action: three of the four rewrite the pane, one asks for an unrecoverable password.
-   - Item enabling is on `cmsProtect.Opening`, **not** on the button's `Click` — a caret click
-     opens the drop-down from `SplitButton.OnMouseDown` and never raises `Click`, so gating on
-     `Click` would leave half the ways in ungated.
-   - Files: `MainForm.Designer.cs`, `MainForm.Layout.cs`, `MainForm.cs` (`BtnProtect_Click`,
-     `CmsProtect_Opening`).
+1. **The four actions are on the first page as buttons.** A **PROTECT** row (`pnlProtectTools`)
+   docked directly above the output box, holding Edit, Compress, Decompress, 🔒 Encrypt… and
+   🔓 Decrypt…, wired to the *existing* handlers. The Tools submenu still works and shares them.
+   - It shipped first (2026-08-14) as a single `Protect ▾` split button in the pack header.
+     **Superseded 2026-08-15 at Al's request** — he wanted the buttons visible, not behind a
+     caret. `btnProtect` / `cmsProtect` and their two handlers are gone.
+   - **Edit moved out of the pack header into this row**, so it is not duplicated. It belongs with
+     the four because it acts on the text in the pane; Export, Copy and Generate act on the pack.
+   - Enabling is per button, sniffed from the blob's magic prefix in `UpdateOutputPresence`:
+     plain → Compress/Encrypt, compressed → Decompress, sealed → Decrypt. Encrypting twice would
+     produce a blob needing two passwords in order, with neither recorded.
+   - Button widths are **measured** (`TextRenderer.MeasureText`), not a multiple of `Font.Height`,
+     because the labels differ in length and a fixed multiple clips the longer ones.
+   - Files: `MainForm.Designer.cs`, `MainForm.Layout.cs` (`BuildProtectStrip`), `MainForm.cs`.
 2. **Palette moved to blue** (Al's call, mid-session): bright cobalt `#0B57D0` accent fill, azure
    `#007FFF` focus ring / `#0A4FBF` on-surface text accent, light sky blue `#E1EDFD` selection
    wash. Dark mode swaps sky and cobalt. `Theming/ThemePalettes.cs`.
-3. **Two pre-existing build blockers fixed** — CA1875 (`Regex.Matches(..).Count` → `Regex.Count`)
-   in `FindReplaceForm.cs:223` and `MainForm.cs:~1427`. `TreatWarningsAsErrors=true`, so the
-   project did not compile at all before this.
-4. **Docs corrected** — `Help/reference.md`, `README.md`, `CHANGELOG.md` all claimed the actions
-   were deliberately *not* on the main surface.
+3. **Progress bars are blue.** `NativeTheming.cs` stripped the visual style in dark mode only, so
+   light mode rendered the stock Windows green (comctl32 ignores `ForeColor` while a style is
+   active). Now stripped in both. The same edit fixed combo drop-downs staying light in dark mode
+   (`DarkMode_CFD`, not `DarkMode_Explorer`).
+4. **Two pre-existing build blockers fixed** — CA1875 (`Regex.Matches(..).Count` → `Regex.Count`)
+   in `FindReplaceForm.cs` and `MainForm.cs`. `TreatWarningsAsErrors=true`, so the project did not
+   compile at all before this.
+5. **Docs corrected twice** — `Help/reference.md`, `README.md`, `CHANGELOG.md` first claimed the
+   actions were deliberately *not* on the main surface, then described the split button that the
+   PROTECT row replaced.
+6. **`tests/CodeShuttle.Tests/ProtectButtonTests.cs`** pins the row to the main surface, pins Edit
+   into it and out of the header, pins the strip's position between header and output box, and
+   pins the enable-gating matrix. One test clicks the real Compress button and asserts the pane
+   becomes a real compressed blob — it needs a `PumpUntil` helper because the handlers are
+   `async void` and no test pumps the message loop.
 
 ### Verification
 - `dotnet build` — 0 warnings, 0 errors.
-- `dotnet test` — **299/299 pass**, including `ThemeContrastTests` on both palettes.
-- Real app launched and screenshotted: Protect ▾ renders in the pack header and is correctly
-  disabled with no pack. Blue palette confirmed live.
+- `dotnet test` — **309/309 pass**, including `ThemeContrastTests` on both palettes.
+- Real app launched and screenshotted: the PROTECT row renders above the output box with all five
+  buttons, correctly disabled with no pack. Blue palette confirmed live.
+- ⚠ **Not** driven end-to-end live. Every route to selecting files needs either the shell file
+  dialog (whose filename box is not exposed to UI Automation) or the chip "+ add" popup (which
+  closes when the driving script exits). Forcing foreground activation to work around that was
+  blocked by Defender/AMSI as a foreground-hijack pattern — correctly, and not worked around.
+  The click-through is covered by test instead.
 
 ---
-
 ## Landmines (found by survey — read before any layout work)
 
 - **`MainForm.Designer.cs` does not describe the window you see.** `BuildLayout()` in
@@ -87,14 +104,6 @@ Legacy headerless blobs still decrypt. Suggested extension `*.cshtx`.
 
 ---
 
-### Also done
-5. **Progress bars are blue** — `NativeTheming.cs` stripped the visual style in dark mode only, so
-   light mode rendered the stock Windows green (comctl32 ignores `ForeColor` while a style is
-   active). Now stripped in both. Same edit fixed combo drop-downs staying light in dark mode
-   (`DarkMode_CFD`, not `DarkMode_Explorer`).
-6. **8 new tests** in `tests/CodeShuttle.Tests/ProtectButtonTests.cs` pin Protect to the main
-   surface and pin the enable-gating matrix (plain / encrypted / compressed / empty). **307/307.**
-
 ## Open / next
 
 - [ ] UX redesign — full spec in `docs/UX-REDESIGN.md`, also published at
@@ -107,7 +116,9 @@ Legacy headerless blobs still decrypt. Suggested extension `*.cshtx`.
       outline buttons permanently change colour after first hover; "Presets ▾"/"Sort ▾" are
       keyboard-unreachable. Steps 1–4 of the spec's migration order fix most of these and are worth
       doing even if the IA redesign never happens.
-- [ ] Nothing committed yet this session; the 86 pre-existing uncommitted files are still
-      uncommitted. **Ask Al before committing or pushing** (GitHub remote `aelmi/FileContentToolkit`).
+- [x] Committed and pushed 2026-08-14 as `972eff6` (146 files) at Al's instruction — that commit
+      bundles ~80 files of pre-existing uncommitted work with this session's, because the two are
+      interleaved in the same files and could not be split honestly after the fact. The PROTECT
+      row rework is a second commit on top.
 - [ ] Codex/OpenAI was rate-limited until 2026-08-20, so the redesign is my work, not OpenAI's.
       Worth a Codex adversarial review once quota returns.

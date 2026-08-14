@@ -402,40 +402,6 @@ namespace CodeShuttle
             SortFilesAndRebind(orderByExtension: true);
         }
 
-        /// <summary>
-        /// Opens the Protect menu. Wired to the whole button face, not only the caret.
-        /// </summary>
-        /// <remarks>
-        /// A split button usually runs a primary action when the face is clicked, but none of the
-        /// four actions here is safe as a default: three of them overwrite the output pane, and the
-        /// encrypting one asks for a password that cannot be recovered. So the face opens the menu
-        /// and every action is chosen by name.
-        /// </remarks>
-        private void BtnProtect_Click(object sender, EventArgs e) => btnProtect.ShowDropDown();
-
-        /// <summary>
-        /// Enables each Protect item against what the output pane actually holds.
-        /// </summary>
-        /// <remarks>
-        /// On the menu rather than on <see cref="BtnProtect_Click"/> because clicking the caret
-        /// opens the drop-down straight from the button's own <c>OnMouseDown</c> and never raises
-        /// <c>Click</c> — gating there would leave half the ways in ungated. Sniffed from the
-        /// blob's magic prefix, so the menu cannot offer to decrypt plain text or to encrypt
-        /// something that is already sealed.
-        /// </remarks>
-        private void CmsProtect_Opening(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            var pane = OutputReadable ? rtbOutput.Text ?? string.Empty : string.Empty;
-            bool encrypted = CompressionUtils.LooksLikeEncryptedBase64(pane);
-            bool compressed = CompressionUtils.LooksLikeCompressedBase64(pane);
-            bool plain = pane.Length > 0 && !encrypted && !compressed;
-
-            mnuProtectEncrypt.Enabled = plain;
-            mnuProtectDecrypt.Enabled = encrypted;
-            mnuProtectCompress.Enabled = plain;
-            mnuProtectDecompress.Enabled = compressed;
-        }
-
         private async void BtnCompress_Click(object sender, EventArgs e)
         {
             // The gate runs here, against the plain text, because SecretGuard.Scan cannot see

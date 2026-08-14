@@ -227,15 +227,20 @@ centre, and three menus. The pipeline is now the layout.
   retained.
 - The compression/encryption actions moved from the main surface into
   **Tools ▸ Compression and encryption**, and are now back on the main surface
-  as well, behind a single **Protect ▾** button in the pack header. Four
-  buttons competed with Generate for attention, which is what prompted the
-  move; one button that opens a four-item menu keeps the capability visible
-  without re-creating that fight. Clicking anywhere on the button opens the
-  menu — there is no primary action, because three of the four rewrite the
-  output pane and one asks for a password that cannot be recovered. The items
-  are enabled against what the pane actually holds, so the menu cannot offer to
-  decrypt plain text or to encrypt an already-sealed blob. The Tools submenu
-  still works and shares the same handlers.
+  as a **PROTECT** row directly above the output box: Compress, Decompress,
+  🔒 Encrypt… and 🔓 Decrypt…, as buttons. They were four buttons originally,
+  were moved out because they competed with Generate, and returned briefly as
+  one split button; they are buttons again because this is the capability that
+  lets a pack leave the machine safely, and a capability behind a caret is one
+  nobody finds. **Edit** joined that row and left the pack header, because it
+  acts on the text in the pane like the other four rather than on the pack like
+  Export, Copy and Generate. The Tools submenu still works and shares the same
+  handlers.
+- Each protect button is enabled against what the output pane actually holds,
+  read from the blob's own magic header. Plain text can be compressed or
+  encrypted; a compressed pack can only be decompressed; a sealed one can only
+  be decrypted. Encrypting an already-encrypted pane would have produced a blob
+  requiring two passwords in the right order, with neither recorded anywhere.
 - **The accent is now blue.** The palette moved off the deep viridian to a
   three-blue family: bright cobalt for the one filled accent fill, azure for
   the focus ring and (deepened to carry as text) for on-surface links and

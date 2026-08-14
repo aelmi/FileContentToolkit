@@ -51,13 +51,11 @@ namespace CodeShuttle
         private System.Windows.Forms.ToolStripMenuItem mnuCopyJson;
         private System.Windows.Forms.ToolStripSeparator mnuCopyAsPromptSep;
         private System.Windows.Forms.ToolStripMenuItem mnuCopyAsPrompt;
-        private CodeShuttle.UI.SplitButton btnProtect;
-        private System.Windows.Forms.ContextMenuStrip cmsProtect;
-        private System.Windows.Forms.ToolStripMenuItem mnuProtectEncrypt;
-        private System.Windows.Forms.ToolStripMenuItem mnuProtectDecrypt;
-        private System.Windows.Forms.ToolStripSeparator mnuProtectSep;
-        private System.Windows.Forms.ToolStripMenuItem mnuProtectCompress;
-        private System.Windows.Forms.ToolStripMenuItem mnuProtectDecompress;
+        private System.Windows.Forms.Panel pnlProtectTools;
+        private System.Windows.Forms.Button btnCompress;
+        private System.Windows.Forms.Button btnDecompress;
+        private System.Windows.Forms.Button btnCompressEnc;
+        private System.Windows.Forms.Button btnDecompressEnc;
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.ContextMenuStrip cmsAddDropdown;
         private System.Windows.Forms.ToolStripMenuItem miShowExtensionSummary;
@@ -460,13 +458,11 @@ namespace CodeShuttle
             mnuCopyJson = new ToolStripMenuItem();
             mnuCopyAsPromptSep = new ToolStripSeparator();
             mnuCopyAsPrompt = new ToolStripMenuItem();
-            btnProtect = new CodeShuttle.UI.SplitButton();
-            cmsProtect = new ContextMenuStrip(components);
-            mnuProtectEncrypt = new ToolStripMenuItem();
-            mnuProtectDecrypt = new ToolStripMenuItem();
-            mnuProtectSep = new ToolStripSeparator();
-            mnuProtectCompress = new ToolStripMenuItem();
-            mnuProtectDecompress = new ToolStripMenuItem();
+            pnlProtectTools = new Panel();
+            btnCompress = new Button();
+            btnDecompress = new Button();
+            btnCompressEnc = new Button();
+            btnDecompressEnc = new Button();
             lblOutput = new Label();
             pnlSeparator = new Panel();
             toolTip1 = new ToolTip(components);
@@ -494,7 +490,7 @@ namespace CodeShuttle
             pnlBudget.SuspendLayout();
             pnlOutputHeader.SuspendLayout();
             cmsCopyAs.SuspendLayout();
-            cmsProtect.SuspendLayout();
+            pnlProtectTools.SuspendLayout();
             SuspendLayout();
             //
             // pnlTop
@@ -2055,67 +2051,67 @@ namespace CodeShuttle
             btnCopyOutput.UseVisualStyleBackColor = false;
             btnCopyOutput.Click += BtnCopyOutput_Click;
             //
-            // btnProtect
+            // pnlProtectTools
             //
-            // The four compression and encryption actions, back on the main surface. They were moved
-            // into Tools because four buttons competed with Generate for attention; one button that
-            // opens a four-item menu keeps the capability visible without re-creating that fight.
-            // The whole face opens the menu — see MainForm.Layout.cs — so no click can start an
-            // encryption the user did not choose.
-            btnProtect.Cursor = Cursors.Hand;
-            btnProtect.Dock = DockStyle.Right;
-            btnProtect.DropDownMenu = cmsProtect;
-            btnProtect.FlatStyle = FlatStyle.Flat;
-            btnProtect.Name = "btnProtect";
-            btnProtect.ShowSplit = true;
-            btnProtect.Size = new Size(84, 30);
-            btnProtect.TabIndex = 5;
-            btnProtect.Text = "Protect";
-            toolTip1.SetToolTip(btnProtect, "Compress or encrypt the pack before it leaves this machine");
-            btnProtect.UseVisualStyleBackColor = false;
-            btnProtect.Click += BtnProtect_Click;
+            // The compression and encryption actions, as buttons, in the pane that holds the pack
+            // they act on. They were four buttons here originally, were moved into Tools because
+            // they competed with Generate, and came back briefly as one split button. They are
+            // buttons again by request: this is the capability that lets a pack leave the machine
+            // safely, and a capability behind a caret is one nobody finds.
             //
-            // cmsProtect
+            // Edit sits here too rather than in the pack header, because it is a thing you do *to*
+            // the text like the other four, not a thing you do *with* the pack like Export or Copy.
+            pnlProtectTools.Name = "pnlProtectTools";
+            pnlProtectTools.Size = new Size(1103, 44);
+            pnlProtectTools.TabIndex = 2;
             //
-            cmsProtect.ImageScalingSize = new Size(14, 12);
-            cmsProtect.Items.AddRange(new ToolStripItem[] {
-                mnuProtectEncrypt, mnuProtectDecrypt, mnuProtectSep, mnuProtectCompress, mnuProtectDecompress });
-            cmsProtect.Name = "cmsProtect";
-            cmsProtect.Size = new Size(240, 98);
-            cmsProtect.Opening += CmsProtect_Opening;
+            // btnCompress
             //
-            // mnuProtectEncrypt
+            btnCompress.Cursor = Cursors.Hand;
+            btnCompress.FlatStyle = FlatStyle.Flat;
+            btnCompress.Name = "btnCompress";
+            btnCompress.Size = new Size(110, 30);
+            btnCompress.TabIndex = 1;
+            btnCompress.Text = "Co&mpress";
+            toolTip1.SetToolTip(btnCompress, "Shrink the pack with GZip. Smaller to paste — but an AI cannot read a compressed pack.");
+            btnCompress.UseVisualStyleBackColor = false;
+            btnCompress.Click += BtnCompress_Click;
             //
-            mnuProtectEncrypt.Name = "mnuProtectEncrypt";
-            mnuProtectEncrypt.Size = new Size(240, 19);
-            mnuProtectEncrypt.Text = "&Encrypt with password...";
-            mnuProtectEncrypt.Click += BtnCompressEnc_Click;
+            // btnDecompress
             //
-            // mnuProtectDecrypt
+            btnDecompress.Cursor = Cursors.Hand;
+            btnDecompress.FlatStyle = FlatStyle.Flat;
+            btnDecompress.Name = "btnDecompress";
+            btnDecompress.Size = new Size(110, 30);
+            btnDecompress.TabIndex = 2;
+            btnDecompress.Text = "Decom&press";
+            toolTip1.SetToolTip(btnDecompress, "Turn a compressed pack back into readable text.");
+            btnDecompress.UseVisualStyleBackColor = false;
+            btnDecompress.Click += BtnDecompress_Click;
             //
-            mnuProtectDecrypt.Name = "mnuProtectDecrypt";
-            mnuProtectDecrypt.Size = new Size(240, 19);
-            mnuProtectDecrypt.Text = "&Decrypt with password...";
-            mnuProtectDecrypt.Click += BtnDecompressEnc_Click;
+            // btnCompressEnc
             //
-            // mnuProtectSep
+            btnCompressEnc.Cursor = Cursors.Hand;
+            btnCompressEnc.FlatStyle = FlatStyle.Flat;
+            btnCompressEnc.Name = "btnCompressEnc";
+            btnCompressEnc.Size = new Size(150, 30);
+            btnCompressEnc.TabIndex = 3;
+            btnCompressEnc.Text = "🔒 &Encrypt...";
+            toolTip1.SetToolTip(btnCompressEnc, "Seal the pack with a password (AES-GCM). There is no password recovery.");
+            btnCompressEnc.UseVisualStyleBackColor = false;
+            btnCompressEnc.Click += BtnCompressEnc_Click;
             //
-            mnuProtectSep.Name = "mnuProtectSep";
-            mnuProtectSep.Size = new Size(237, 6);
+            // btnDecompressEnc
             //
-            // mnuProtectCompress
-            //
-            mnuProtectCompress.Name = "mnuProtectCompress";
-            mnuProtectCompress.Size = new Size(240, 19);
-            mnuProtectCompress.Text = "Co&mpress (no password)";
-            mnuProtectCompress.Click += BtnCompress_Click;
-            //
-            // mnuProtectDecompress
-            //
-            mnuProtectDecompress.Name = "mnuProtectDecompress";
-            mnuProtectDecompress.Size = new Size(240, 19);
-            mnuProtectDecompress.Text = "Decom&press";
-            mnuProtectDecompress.Click += BtnDecompress_Click;
+            btnDecompressEnc.Cursor = Cursors.Hand;
+            btnDecompressEnc.FlatStyle = FlatStyle.Flat;
+            btnDecompressEnc.Name = "btnDecompressEnc";
+            btnDecompressEnc.Size = new Size(150, 30);
+            btnDecompressEnc.TabIndex = 4;
+            btnDecompressEnc.Text = "🔓 &Decrypt...";
+            toolTip1.SetToolTip(btnDecompressEnc, "Unseal a password-protected pack.");
+            btnDecompressEnc.UseVisualStyleBackColor = false;
+            btnDecompressEnc.Click += BtnDecompressEnc_Click;
             //
             // cmsCopyAs
             //
@@ -2232,7 +2228,7 @@ namespace CodeShuttle
             pnlOutputHeader.ResumeLayout(false);
             pnlOutputHeader.PerformLayout();
             cmsCopyAs.ResumeLayout(false);
-            cmsProtect.ResumeLayout(false);
+            pnlProtectTools.ResumeLayout(false);
             splitMain.Panel1.ResumeLayout(false);
             splitMain.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)splitMain).EndInit();
@@ -2251,7 +2247,10 @@ namespace CodeShuttle
             ThemeRoles.Set(btnFindReplace, ThemeRole.ButtonAccent, FontRole.SmallBold);
             ThemeRoles.Set(btnGenerate, ThemeRole.ButtonAccent, FontRole.Title);
             ThemeRoles.Set(btnLoadPreset, ThemeRole.ButtonSuccess, FontRole.BodyBold);
-            ThemeRoles.Set(btnProtect, ThemeRole.ButtonSubtle, FontRole.Small);
+            ThemeRoles.Set(btnCompress, ThemeRole.ButtonSubtle, FontRole.Small);
+            ThemeRoles.Set(btnDecompress, ThemeRole.ButtonSubtle, FontRole.Small);
+            ThemeRoles.Set(btnCompressEnc, ThemeRole.ButtonSubtle, FontRole.Small);
+            ThemeRoles.Set(btnDecompressEnc, ThemeRole.ButtonSubtle, FontRole.Small);
             ThemeRoles.Set(btnMoveDown, ThemeRole.ButtonSubtle, FontRole.MediumBold);
             ThemeRoles.Set(btnMoveUp, ThemeRole.ButtonSubtle, FontRole.MediumBold);
             ThemeRoles.Set(btnOptions, ThemeRole.ButtonSecondary, FontRole.BodyBold);

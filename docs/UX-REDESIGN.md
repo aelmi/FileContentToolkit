@@ -1,6 +1,8 @@
 # CodeShuttle — UX redesign specification
 
-**Status:** proposal. Nothing here is implemented except the blue palette and the `Protect ▾` button.
+**Status:** proposal. Nothing here is implemented except the blue palette and the **PROTECT** button
+row above the output box. (An earlier `Protect ▾` split button, discussed in §6, was replaced by that
+row at the owner's request — the argument in §6 for splitting the actions *by direction* still stands.)
 **Date:** 2026-08-14
 **Constraint:** .NET 8 · WinForms · Win10 1809+ · **zero NuGet packages**. Everything below is
 stock WinForms plus `OnPaint`. Anything that isn't buildable is marked as such rather than drawn
@@ -66,7 +68,7 @@ least useful thing.
 #### 1.3 The IA contradicts itself in shipped strings
 
 `ReportNoFileEntries` tells the user to "Run **Tools ▸ Decompress output** first". The same four
-commands now also live behind `Protect ▾` in the pack header. Four commands, two homes, and the
+commands now also live in the PROTECT row above the output. Four commands, two homes, and the
 error text points at the home the redesign demoted.
 
 #### 1.4 Generate is on the wrong side of the splitter
@@ -207,7 +209,7 @@ G  STATUS BAR      counts · skipped · progress · ambient indicators
 - The bottom round-trip strip — replaced by the trip bar plus the next-step hint.
 - `btnApplyAiChanges` as a top-level control (§1.2). Its one legitimate case — the user hand-edited
   the pack pane — becomes a link inside stage ②: *"use what's in the pack pane."*
-- `Protect ▾` — see §6. (It ships today; the redesign supersedes it.)
+- The PROTECT row as a flat list of four — see §6. (It ships today; the redesign regroups it.)
 - `SOURCE` as a rail section; `cmbEncoding` from the command bar.
 
 **Moves**
@@ -416,7 +418,7 @@ be legible at the moment of commitment.
 
 ### 6. Where the security actions belong
 
-#### What's wrong with `Protect ▾` (as shipped today)
+#### What's wrong with the four actions as four flat peers (as shipped today)
 
 The four commands are grouped by **implementation** — "things that transform the pane text" — not
 by **intent**:
